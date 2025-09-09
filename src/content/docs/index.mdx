@@ -19,6 +19,11 @@ hero:
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
 **ee** is a CLI tool that brings structure and validation to environment variable management. Define schemas, organize configurations across environments, and deploy with confidence knowing your variables are validated and consistent.
+<div align="center">
+  ```bash
+  curl -sSfL https://ee.n1rna.net/install.sh | sh
+  ```
+</div>
 
 ## Features
 
@@ -40,23 +45,39 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 ## Quick Example
 
 ```bash
-# Create a schema for your web service
-ee schema create web-service
+# Init ee in your project directory
+ee init
 
-# Create a project with environments
-ee project create my-app --schema web-service
-ee project env create my-app development
-ee project env create my-app production
+# Optionally set a remote
+ee remote n1rna@ee.dev
+ee pull
 
-# Configure your environments
-ee project env set my-app development \
-  PORT=3000 \
-  DATABASE_URL=postgres://localhost:5432/dev \
-  DEBUG=true
+# Apply environment sheets
+ee apply production
 
-# Run your application with the right config
-ee apply my-app development -- npm start
+## Run your application with the right config
+ee apply production -- echo "Hello, ${APP_USER}"
+ee apply development -- bun dev
+
+# Export and use sheets in different formats
+ee sheet export --env production
 ```
+
+## Get Started
+
+Ready to improve your environment variable management? Start with our installation guide and learn the basics with our quick start tutorial.
+
+<CardGrid>
+	<Card title="Installation" icon="add-document">
+		Install ee on Linux, macOS, or Windows with our simple installation guide.
+		[Install ee →](/getting-started/installation)
+	</Card>
+	<Card title="Quick Start" icon="rocket">
+		Learn the basics with a hands-on tutorial covering schemas, projects, and environments.
+		[Quick start guide →](/getting-started/quick-start)
+	</Card>
+</CardGrid>
+
 
 ## Core Concepts
 
@@ -76,20 +97,5 @@ ee apply my-app development -- npm start
 	<Card title="Configuration Sheets" icon="document">
 		Store and manage the actual variable values with inheritance support.
 		[Learn about sheets →](/concepts/sheets)
-	</Card>
-</CardGrid>
-
-## Get Started
-
-Ready to improve your environment variable management? Start with our installation guide and learn the basics with our quick start tutorial.
-
-<CardGrid>
-	<Card title="Installation" icon="add-document">
-		Install ee on Linux, macOS, or Windows with our simple installation guide.
-		[Install ee →](/getting-started/installation)
-	</Card>
-	<Card title="Quick Start" icon="rocket">
-		Learn the basics with a hands-on tutorial covering schemas, projects, and environments.
-		[Quick start guide →](/getting-started/quick-start)
 	</Card>
 </CardGrid>
