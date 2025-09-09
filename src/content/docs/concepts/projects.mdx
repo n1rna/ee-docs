@@ -1,0 +1,406 @@
+---
+title: Projects
+description: Organize and manage multiple environments for your applications
+---
+
+Projects are organizational containers that group related environments together for a single application or service. They provide structure and consistency across your deployment pipeline by associating multiple environments (development, staging, production) with a shared schema.
+
+## What are Projects?
+
+A project represents a single application or service with multiple deployment environments. Each project:
+- Has a unique name and optional description
+- Is associated with a schema that defines the expected environment variables
+- Contains multiple environments (dev, staging, prod, etc.)
+- Manages configuration sheets for each environment
+- Provides a unified interface for environment management
+
+Think of projects as the top-level organizational unit for your application's configuration management.
+
+## Project Structure
+
+```
+my-web-app/                    # Project name
+├── schema: web-service        # Associated schema
+├── environments/
+│   ├── development           # Development environment
+│   ├── staging               # Staging environment
+│   └── production            # Production environment
+└── metadata
+    ├── created: 2024-01-15
+    ├── description: "Main web application"
+    └── id: uuid-12345
+```
+
+Each environment within a project has its own configuration sheet with values specific to that deployment stage.
+
+## Creating Projects
+
+### Basic Project Creation
+```bash
+# Create a project with an existing schema
+ee project create my-web-app --schema web-service
+
+# Create a project with description
+ee project create my-api \
+  --schema api-service \
+  --description "REST API backend service"
+```
+
+### Interactive Project Creation
+```bash
+# Create project interactively (prompts for schema selection)
+ee project create my-app
+```
+
+This will:
+1. Prompt you to select an existing schema or create a new one
+2. Create the project structure
+3. Set up the initial metadata
+
+## Managing Projects
+
+### Listing Projects
+```bash
+# List all projects
+ee project list
+
+# List with details
+ee project list --verbose
+
+# Search for specific projects
+ee project list --search web
+```
+
+### Viewing Project Details
+```bash
+# Show project information
+ee project show my-web-app
+
+# Show project with all environments
+ee project show my-web-app --environments
+
+# Show project schema details
+ee project show my-web-app --schema
+```
+
+### Updating Projects
+```bash
+# Update project description
+ee project update my-web-app --description "Updated description"
+
+# Change project schema (careful - this affects all environments)
+ee project update my-web-app --schema new-schema
+
+# Rename project
+ee project rename my-web-app my-webapp
+```
+
+### Deleting Projects
+```bash
+# Delete project and all its environments (requires confirmation)
+ee project delete my-web-app
+
+# Force delete without confirmation
+ee project delete my-web-app --force
+```
+
+## Project Environments
+
+Each project can have multiple environments representing different deployment stages.
+
+### Creating Environments
+```bash
+# Create standard environments
+ee project env create my-web-app development
+ee project env create my-web-app staging
+ee project env create my-web-app production
+
+# Create custom environments
+ee project env create my-web-app testing
+ee project env create my-web-app demo
+```
+
+### Listing Environments
+```bash
+# List all environments in a project
+ee project env list my-web-app
+
+# List with configuration details
+ee project env list my-web-app --verbose
+```
+
+### Managing Environment Configuration
+```bash
+# Edit environment variables
+ee project env edit my-web-app development
+
+# Set individual variables
+ee project env set my-web-app development \
+  PORT=3000 \
+  DEBUG=true \
+  DATABASE_URL=postgres://localhost:5432/myapp_dev
+
+# Show environment configuration
+ee project env show my-web-app development
+
+# Export environment configuration
+ee project env export my-web-app development --format env
+```
+
+### Deleting Environments
+```bash
+# Delete a specific environment
+ee project env delete my-web-app staging
+
+# Delete with confirmation
+ee project env delete my-web-app staging --confirm
+```
+
+## Schema Association
+
+Projects are tightly coupled with schemas to ensure consistency across environments.
+
+### Schema Enforcement
+All environments within a project must conform to the project's schema:
+- **Variable validation** happens when setting values
+- **Required fields** must be present in all environments
+- **Type checking** ensures data consistency
+- **Default values** are applied automatically
+
+### Changing Project Schemas
+```bash
+# Update project schema (affects all environments)
+ee project update my-web-app --schema new-web-service-schema
+
+# Check what would change before applying
+ee project update my-web-app --schema new-schema --dry-run
+```
+
+When changing schemas:
+1. Existing variables are validated against the new schema
+2. New required variables must be set in all environments
+3. Removed variables are flagged but not deleted
+4. Type mismatches are reported and must be resolved
+
+## Environment Inheritance
+
+Project environments can inherit configuration from other environments or external sheets:
+
+```yaml
+# Base configuration (shared across environments)
+name: my-app-base
+schema: web-service
+values:
+  APP_NAME: "MyApp"
+  APP_VERSION: "1.0.0"
+  LOG_FORMAT: "json"
+
+---
+
+# Development environment inherits from base
+name: my-app-development
+schema: web-service
+extends: ["my-app-base"]
+values:
+  DEBUG: "true"
+  DATABASE_URL: "postgres://localhost:5432/myapp_dev"
+  LOG_LEVEL: "debug"
+
+---
+
+# Production environment inherits from base
+name: my-app-production
+schema: web-service
+extends: ["my-app-base"]
+values:
+  DEBUG: "false"
+  DATABASE_URL: "postgres://prod-db:5432/myapp"
+  LOG_LEVEL: "warn"
+```
+
+## Working with Multiple Projects
+
+### Project Templates
+Create reusable project templates:
+
+```bash
+# Export a project as a template
+ee project template create web-app-template --from my-web-app
+
+# Create new projects from templates
+ee project create new-service --template web-app-template
+```
+
+### Cross-Project Dependencies
+Projects can reference shared configuration:
+
+```yaml
+# Shared database configuration
+name: shared-database
+schema: database-config
+values:
+  DB_HOST: "shared-db.example.com"
+  DB_PORT: "5432"
+  DB_SSL: "true"
+
+---
+
+# Project environment using shared config
+name: service-a-production
+extends: ["shared-database"]
+values:
+  DB_NAME: "service_a"
+  DB_USER: "service_a_user"
+```
+
+## Common Project Patterns
+
+### Microservices Architecture
+```bash
+# Create projects for each service
+ee project create user-service --schema api-service
+ee project create order-service --schema api-service
+ee project create notification-service --schema api-service
+
+# Each service has the same environments
+for service in user-service order-service notification-service; do
+  ee project env create $service development
+  ee project env create $service staging
+  ee project env create $service production
+done
+```
+
+### Monolithic Application
+```bash
+# Single project with multiple environments
+ee project create webapp --schema full-stack-app
+
+ee project env create webapp development
+ee project env create webapp testing
+ee project env create webapp staging
+ee project env create webapp production
+```
+
+### Multi-Tenant Application
+```bash
+# Base project for the application
+ee project create saas-app --schema saas-schema
+
+# Environments for different deployment stages
+ee project env create saas-app development
+ee project env create saas-app staging
+ee project env create saas-app production
+
+# Client-specific configurations as separate projects
+ee project create client-acme --schema saas-schema
+ee project create client-globex --schema saas-schema
+```
+
+## Project Workflows
+
+### Development Workflow
+```bash
+# 1. Create project and development environment
+ee project create my-app --schema web-service
+ee project env create my-app development
+
+# 2. Configure development environment
+ee project env edit my-app development
+
+# 3. Run application with development config
+ee apply my-app development -- npm start
+
+# 4. Create staging environment when ready
+ee project env create my-app staging
+ee project env edit my-app staging
+
+# 5. Deploy to staging
+ee apply my-app staging -- deploy-script.sh
+```
+
+### Production Deployment
+```bash
+# 1. Create production environment
+ee project env create my-app production
+
+# 2. Configure production values
+ee project env edit my-app production
+
+# 3. Validate configuration
+ee project env show my-app production --validate
+
+# 4. Export for deployment
+ee project env export my-app production --format env > .env.production
+
+# 5. Deploy with production config
+ee apply my-app production -- production-deploy.sh
+```
+
+### Configuration Promotion
+```bash
+# Copy configuration between environments
+ee project env copy my-app development staging
+
+# Promote configuration through pipeline
+ee project env promote my-app development -> staging -> production
+```
+
+## Best Practices
+
+### Naming Conventions
+- **Projects**: Use kebab-case (`user-service`, `web-app`)
+- **Environments**: Use standard names (`development`, `staging`, `production`)
+- **Descriptions**: Be descriptive and include purpose
+
+### Environment Strategy
+- **Consistent schemas** across environments in a project
+- **Minimal differences** between environments
+- **Progressive complexity** from dev to prod
+- **Isolated secrets** per environment
+
+### Schema Management
+- **Version your schemas** alongside your application code
+- **Test schema changes** in development first
+- **Migrate environments** gradually when updating schemas
+- **Document breaking changes** in schema descriptions
+
+### Security
+- **Separate projects** for different security levels
+- **Environment-specific secrets** (never share production secrets)
+- **Access controls** based on environment sensitivity
+- **Regular audits** of project configurations
+
+## Troubleshooting
+
+### Schema Validation Errors
+```bash
+# Check which environments have validation issues
+ee project validate my-web-app
+
+# See specific validation errors
+ee project env validate my-web-app development
+```
+
+### Missing Variables
+```bash
+# Find environments missing required variables
+ee project env audit my-web-app
+
+# Compare environments to identify differences
+ee project env diff my-web-app development production
+```
+
+### Migration Issues
+```bash
+# Preview schema change impact
+ee project update my-web-app --schema new-schema --dry-run
+
+# Check compatibility before migration
+ee schema compare web-service new-web-service
+```
+
+## Next Steps
+
+- Learn about [Environments](/concepts/environments) for detailed environment management
+- Understand [Schemas](/concepts/schemas) for defining project structure
+- Explore [Sheets](/concepts/sheets) for advanced configuration management

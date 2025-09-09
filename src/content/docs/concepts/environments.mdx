@@ -1,0 +1,515 @@
+---
+title: Environments
+description: Manage different deployment stages and their configurations
+---
+
+Environments represent different deployment stages of your application (development, staging, production, etc.). Each environment has its own set of configuration values while following the same schema structure, enabling consistent deployment across your pipeline.
+
+## What are Environments?
+
+An environment is a named configuration context that:
+- Represents a specific deployment stage (dev, staging, prod)
+- Contains environment-specific variable values
+- Follows the same schema as other environments in the project
+- Can inherit configuration from other environments or sheets
+- Supports validation and type checking
+
+Environments allow you to maintain different configurations for the same application as it moves through your deployment pipeline.
+
+## Environment Types
+
+### Project Environments
+Environments that belong to a specific project and share its schema:
+
+```bash
+# Create environments within a project
+ee project env create my-web-app development
+ee project env create my-web-app staging
+ee project env create my-web-app production
+```
+
+### Standalone Environments
+Independent configuration sheets not tied to any project:
+
+```bash
+# Create standalone config sheets (these act as environments)
+ee sheet create database-config --schema database-schema
+ee sheet create monitoring-config --schema monitoring-schema
+```
+
+## Common Environment Patterns
+
+### Standard Three-Stage Pipeline
+```bash
+# Development - local development and testing
+ee project env create my-app development
+
+# Staging - pre-production testing and validation
+ee project env create my-app staging
+
+# Production - live application environment
+ee project env create my-app production
+```
+
+### Extended Pipeline
+```bash
+# More granular deployment stages
+ee project env create my-app development
+ee project env create my-app testing      # Automated testing
+ee project env create my-app integration  # Integration testing
+ee project env create my-app staging      # Pre-production
+ee project env create my-app production   # Live environment
+```
+
+### Feature Branch Environments
+```bash
+# Dynamic environments for feature development
+ee project env create my-app feature-auth
+ee project env create my-app feature-payments
+ee project env create my-app feature-analytics
+```
+
+## Environment Configuration
+
+### Setting Environment Variables
+```bash
+# Edit environment interactively
+ee project env edit my-app development
+
+# Set multiple variables at once
+ee project env set my-app development \
+  PORT=3000 \
+  DATABASE_URL=postgres://localhost:5432/myapp_dev \
+  DEBUG=true \
+  LOG_LEVEL=debug
+
+# Set individual variables
+ee project env set my-app staging API_KEY=staging-key-123
+```
+
+### Environment Configuration Example
+```yaml
+# Development environment
+name: my-app-development
+project: my-app
+environment: development
+schema: web-service
+values:
+  # Server configuration
+  PORT: "3000"
+  HOST: "localhost"
+
+  # Database (local development database)
+  DATABASE_URL: "postgres://user:pass@localhost:5432/myapp_dev"
+
+  # Debugging and logging
+  DEBUG: "true"
+  LOG_LEVEL: "debug"
+
+  # External services (development/mock endpoints)
+  API_BASE_URL: "https://api-dev.example.com"
+  PAYMENT_GATEWAY_URL: "https://sandbox.paymentprovider.com"
+
+  # Feature flags
+  FEATURE_NEW_UI: "true"
+  FEATURE_BETA_PAYMENTS: "false"
+
+---
+
+# Production environment
+name: my-app-production
+project: my-app
+environment: production
+schema: web-service
+values:
+  # Server configuration (production settings)
+  PORT: "80"
+  HOST: "0.0.0.0"
+
+  # Database (production database)
+  DATABASE_URL: "postgres://produser:securepass@prod-db:5432/myapp"
+
+  # Debugging and logging (minimal logging)
+  DEBUG: "false"
+  LOG_LEVEL: "warn"
+
+  # External services (production endpoints)
+  API_BASE_URL: "https://api.example.com"
+  PAYMENT_GATEWAY_URL: "https://api.paymentprovider.com"
+
+  # Feature flags (conservative production settings)
+  FEATURE_NEW_UI: "false"
+  FEATURE_BETA_PAYMENTS: "false"
+```
+
+## Environment Inheritance
+
+Environments can inherit configuration from other environments or configuration sheets to reduce duplication and maintain consistency.
+
+### Basic Inheritance
+```yaml
+# Base configuration shared across environments
+name: my-app-base
+schema: web-service
+values:
+  APP_NAME: "MyApp"
+  APP_VERSION: "1.0.0"
+  TIMEZONE: "UTC"
+  LOG_FORMAT: "json"
+
+---
+
+# Development inherits base configuration
+name: my-app-development
+extends: ["my-app-base"]
+values:
+  DEBUG: "true"
+  LOG_LEVEL: "debug"
+  DATABASE_URL: "postgres://localhost:5432/myapp_dev"
+
+---
+
+# Production inherits base configuration
+name: my-app-production
+extends: ["my-app-base"]
+values:
+  DEBUG: "false"
+  LOG_LEVEL: "error"
+  DATABASE_URL: "postgres://prod-db:5432/myapp"
+```
+
+### Multi-Level Inheritance
+```yaml
+# Base application settings
+name: app-base
+values:
+  APP_NAME: "MyApp"
+  LOG_FORMAT: "json"
+
+---
+
+# Base web service settings
+name: web-base
+extends: ["app-base"]
+values:
+  PORT: "3000"
+  HOST: "0.0.0.0"
+
+---
+
+# Development environment
+name: my-app-development
+extends: ["web-base"]
+values:
+  DEBUG: "true"
+  DATABASE_URL: "postgres://localhost:5432/dev"
+```
+
+### Cross-Project Inheritance
+```yaml
+# Shared infrastructure configuration
+name: shared-infrastructure
+schema: infrastructure-schema
+values:
+  REDIS_HOST: "shared-redis.internal"
+  ELASTICSEARCH_URL: "https://shared-es.internal"
+  MONITORING_ENDPOINT: "https://monitoring.internal"
+
+---
+
+# Service A production environment
+name: service-a-production
+extends: ["shared-infrastructure"]
+values:
+  SERVICE_NAME: "service-a"
+  DATABASE_URL: "postgres://prod-db:5432/service_a"
+
+---
+
+# Service B production environment
+name: service-b-production
+extends: ["shared-infrastructure"]
+values:
+  SERVICE_NAME: "service-b"
+  DATABASE_URL: "postgres://prod-db:5432/service_b"
+```
+
+## Environment Operations
+
+### Viewing Environment Configuration
+```bash
+# Show environment details
+ee project env show my-app development
+
+# Show resolved configuration (including inherited values)
+ee project env show my-app development --resolved
+
+# Show only the values
+ee project env export my-app development --format env
+```
+
+### Comparing Environments
+```bash
+# Compare two environments
+ee project env diff my-app development staging
+
+# Compare environment to schema
+ee project env validate my-app production
+
+# Show differences in values only
+ee project env diff my-app staging production --values-only
+```
+
+### Copying Environment Configuration
+```bash
+# Copy configuration from one environment to another
+ee project env copy my-app development staging
+
+# Copy specific variables only
+ee project env copy my-app development staging --variables PORT,DEBUG
+
+# Copy and override specific values
+ee project env copy my-app development staging --set LOG_LEVEL=info
+```
+
+## Environment Validation
+
+Environments are automatically validated against their associated schema:
+
+### Validation Rules
+- **Required variables** must be present and non-empty
+- **Type checking** ensures variables match expected types
+- **Regex patterns** validate variable formats
+- **Schema compliance** checks all defined constraints
+
+### Validation Commands
+```bash
+# Validate a specific environment
+ee project env validate my-app production
+
+# Validate all environments in a project
+ee project validate my-app
+
+# Check validation before applying
+ee apply my-app production --dry-run
+```
+
+### Common Validation Errors
+```bash
+# Missing required variable
+Error: Variable 'DATABASE_URL' is required but not set
+
+# Type mismatch
+Error: Variable 'PORT' must be a number, got 'three-thousand'
+
+# Regex pattern failure
+Error: Variable 'EMAIL' does not match pattern '^[^@]+@[^@]+\.[^@]+'
+
+# Invalid boolean value
+Error: Variable 'DEBUG' must be a boolean, got 'maybe'
+```
+
+## Environment Security
+
+### Sensitive Variables
+Handle sensitive information appropriately across environments:
+
+```yaml
+# Development - can use dummy/test values
+name: my-app-development
+values:
+  DATABASE_PASSWORD: "dev-password-123"
+  API_SECRET: "dev-secret-key"
+  JWT_SECRET: "not-so-secret-jwt-key"
+
+---
+
+# Production - must use real secure values
+name: my-app-production
+values:
+  DATABASE_PASSWORD: "${PROD_DB_PASSWORD}"  # From secure vault
+  API_SECRET: "${PROD_API_SECRET}"          # From secure vault
+  JWT_SECRET: "${PROD_JWT_SECRET}"          # From secure vault
+```
+
+### Environment Isolation
+- **Separate secrets** for each environment
+- **Different access levels** based on environment sensitivity
+- **Network isolation** between environment resources
+- **Audit trails** for configuration changes
+
+## Using Environments
+
+### Loading Environment Variables
+```bash
+# Load environment into current shell
+ee apply my-app development
+
+# Run command with environment loaded
+ee apply my-app production -- node server.js
+
+# Run with specific environment and additional variables
+ee apply my-app staging --set DEBUG=true -- npm test
+```
+
+### Exporting Configurations
+```bash
+# Export as .env file
+ee project env export my-app production --format env > .env.production
+
+# Export as JSON for application consumption
+ee project env export my-app staging --format json > config.json
+
+# Export as YAML for container deployments
+ee project env export my-app production --format yaml > config.yaml
+```
+
+### Integration with Deployment Tools
+
+#### Docker
+```bash
+# Export environment file for Docker
+ee project env export my-app production --format env > .env.production
+
+# Use in Docker Compose
+docker-compose --env-file .env.production up
+```
+
+#### Kubernetes
+```bash
+# Export as YAML for Kubernetes ConfigMap
+ee project env export my-app production --format yaml > configmap.yaml
+
+# Create Kubernetes secret
+ee project env export my-app production --format env | \
+  kubectl create secret generic app-config --from-env-file=-
+```
+
+#### CI/CD Pipelines
+```bash
+# GitHub Actions workflow
+- name: Load staging environment
+  run: |
+    ee project env export my-app staging --format env > .env
+    source .env
+    npm run deploy:staging
+```
+
+## Environment Lifecycle Management
+
+### Creating Environments for New Features
+```bash
+# Create feature environment based on development
+ee project env copy my-app development feature-auth
+ee project env set feature-auth FEATURE_AUTH_V2=true
+
+# Test the feature
+ee apply my-app feature-auth -- npm test
+
+# Clean up when feature is merged
+ee project env delete my-app feature-auth
+```
+
+### Environment Promotion Pipeline
+```bash
+# Promote configuration through environments
+ee project env copy my-app development testing
+ee project env copy my-app testing staging
+ee project env copy my-app staging production
+
+# With validation at each step
+ee project env validate my-app testing
+ee project env validate my-app staging
+ee project env validate my-app production
+```
+
+### Environment Archival
+```bash
+# Archive old environments
+ee project env archive my-app old-staging
+
+# List archived environments
+ee project env list my-app --archived
+
+# Restore archived environment
+ee project env restore my-app old-staging
+```
+
+## Advanced Environment Patterns
+
+### Blue-Green Deployments
+```bash
+# Create parallel production environments
+ee project env create my-app production-blue
+ee project env create my-app production-green
+
+# Deploy to inactive environment
+ee apply my-app production-green -- deploy.sh
+
+# Switch traffic (external to ee)
+# Update load balancer configuration
+
+# Archive old environment
+ee project env archive my-app production-blue
+```
+
+### Canary Deployments
+```bash
+# Create canary environment with new features
+ee project env copy my-app production production-canary
+ee project env set my-app production-canary FEATURE_NEW_ALGO=true
+
+# Deploy canary
+ee apply my-app production-canary -- deploy.sh --canary
+
+# Monitor and promote or rollback based on metrics
+```
+
+### Multi-Region Deployments
+```bash
+# Create region-specific environments
+ee project env create my-app production-us-east
+ee project env create my-app production-eu-west
+ee project env create my-app production-asia-pacific
+
+# Configure region-specific values
+ee project env set my-app production-us-east \
+  REGION=us-east-1 \
+  DATABASE_URL=postgres://us-db:5432/myapp
+
+ee project env set my-app production-eu-west \
+  REGION=eu-west-1 \
+  DATABASE_URL=postgres://eu-db:5432/myapp
+```
+
+## Best Practices
+
+### Environment Design
+- **Consistent naming** across projects (`development`, `staging`, `production`)
+- **Progressive complexity** from simple dev to complex prod
+- **Minimal differences** between environments
+- **Clear ownership** and access controls
+
+### Configuration Management
+- **Use inheritance** to reduce duplication
+- **Version control** environment changes
+- **Validate regularly** against schemas
+- **Document environment-specific decisions**
+
+### Security
+- **Separate secrets** per environment
+- **Principle of least privilege** for access
+- **Regular secret rotation**
+- **Audit configuration changes**
+
+### Operations
+- **Automated validation** in CI/CD pipelines
+- **Configuration drift detection**
+- **Backup critical environments**
+- **Monitor configuration usage**
+
+## Next Steps
+
+- Learn about [Projects](/concepts/projects) for organizing multiple environments
+- Understand [Schemas](/concepts/schemas) for defining environment structure
+- Explore [Configuration Sheets](/concepts/sheets) for advanced configuration management

@@ -1,0 +1,211 @@
+---
+title: Quick Start
+description: Get up and running with ee in minutes
+---
+
+This guide will walk you through your first steps with `ee`, from creating a project to managing environment variables across different environments.
+
+## Step 1: Create Your First Schema
+
+A schema defines the structure and validation rules for your environment variables. Let's create a simple web application schema:
+
+```bash
+ee schema create web-service
+```
+
+This will open your default editor with a template. Edit it to look like this:
+
+```yaml
+name: web-service
+description: Schema for web service environment variables
+variables:
+  - name: PORT
+    title: Server Port
+    type: number
+    default: "3000"
+    required: true
+
+  - name: DATABASE_URL
+    title: Database Connection URL
+    type: string
+    regex: "^(postgres|mysql)://.*"
+    required: true
+
+  - name: DEBUG
+    title: Debug Mode
+    type: boolean
+    default: "false"
+    required: false
+
+  - name: API_KEY
+    title: Third-party API Key
+    type: string
+    required: true
+```
+
+Save and close the editor to create the schema.
+
+## Step 2: Create a Project
+
+Projects organize your environments and associate them with schemas:
+
+```bash
+ee project create my-web-app --schema web-service
+```
+
+This creates a project named "my-web-app" that uses the "web-service" schema.
+
+## Step 3: Create Environments
+
+Most applications need different configurations for development and production:
+
+```bash
+# Create development environment
+ee project env create my-web-app development
+
+# Create production environment
+ee project env create my-web-app production
+```
+
+## Step 4: Configure Environment Variables
+
+Set up your development environment first:
+
+```bash
+ee project env edit my-web-app development
+```
+
+This opens an editor where you can set your variables:
+
+```yaml
+PORT: "3000"
+DATABASE_URL: "postgres://user:pass@localhost:5432/myapp_dev"
+DEBUG: "true"
+API_KEY: "dev-api-key-123"
+```
+
+Now configure production:
+
+```bash
+ee project env edit my-web-app production
+```
+
+```yaml
+PORT: "80"
+DATABASE_URL: "postgres://user:pass@prod-db:5432/myapp"
+DEBUG: "false"
+API_KEY: "prod-api-key-xyz"
+```
+
+## Step 5: Use Your Environment Variables
+
+### Load variables into your shell
+```bash
+# Start a new shell with development variables loaded
+ee apply my-web-app development
+
+# Check that variables are set
+echo $PORT
+echo $DATABASE_URL
+```
+
+### Run commands with environment variables
+```bash
+# Run your application with development config
+ee apply my-web-app development -- npm start
+
+# Run with production config
+ee apply my-web-app production -- npm start
+```
+
+### Export to different formats
+```bash
+# Export as .env file
+ee export my-web-app development --format env > .env.development
+
+# Export as JSON
+ee export my-web-app production --format json > config.json
+
+# Export as YAML
+ee export my-web-app production --format yaml > config.yaml
+```
+
+## Step 6: View Your Configuration
+
+List all your projects and environments:
+
+```bash
+# List all projects
+ee project list
+
+# List environments for a project
+ee project env list my-web-app
+
+# Show schema details
+ee schema show web-service
+```
+
+## Working with Standalone Sheets
+
+You can also create standalone configuration sheets that aren't tied to a project:
+
+```bash
+# Create a standalone sheet
+ee sheet create database-config --schema web-service
+
+# Edit the sheet
+ee sheet edit database-config
+
+# Apply the sheet
+ee apply database-config -- echo "Database config loaded"
+```
+
+## Validation and Error Handling
+
+`ee` validates your variables against the schema. Try setting an invalid value:
+
+```bash
+ee project env set my-web-app development PORT=invalid
+```
+
+You'll get a validation error because "invalid" is not a valid number.
+
+## Next Steps
+
+Now that you understand the basics, explore these topics:
+
+- **[Schemas](/concepts/schemas)** - Learn about variable types, validation, and schema inheritance
+- **[Projects](/concepts/projects)** - Understand project organization and management
+- **[Sheets](/concepts/sheets)** - Work with standalone configuration sheets
+- **[Environments](/concepts/environments)** - Advanced environment management patterns
+
+## Quick Reference
+
+Here are the most common commands you'll use:
+
+```bash
+# Schema management
+ee schema create <name>
+ee schema list
+ee schema show <name>
+
+# Project management
+ee project create <name> --schema <schema>
+ee project list
+ee project env create <project> <env>
+ee project env list <project>
+
+# Setting variables
+ee project env edit <project> <env>
+ee project env set <project> <env> KEY=value
+
+# Using variables
+ee apply <project> <env>                    # Load into shell
+ee apply <project> <env> -- <command>       # Run command
+ee export <project> <env> --format <fmt>    # Export variables
+
+# Standalone sheets
+ee sheet create <name> --schema <schema>
+ee sheet edit <name>
+ee apply <name> -- <command>
+```

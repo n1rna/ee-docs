@@ -1,0 +1,95 @@
+---
+title: Easy Env (ee)
+description: Environment variable management with schema-based validation and multi-stage deployment support
+template: splash
+hero:
+  tagline: Structure and validation for environment variable management
+  image:
+    file: ../../assets/ee-logo.webp
+  actions:
+    - text: Get started
+      link: /getting-started/installation/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/n1rna/ee-cli
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+**ee** is a CLI tool that brings structure and validation to environment variable management. Define schemas, organize configurations across environments, and deploy with confidence knowing your variables are validated and consistent.
+
+## Features
+
+<CardGrid stagger>
+	<Card title="Schema Validation" icon="approve-check">
+		Define variable types, patterns, and requirements. Catch configuration errors before they reach production.
+	</Card>
+	<Card title="Multi-Environment Support" icon="setting">
+		Manage development, staging, and production configurations from a single tool.
+	</Card>
+	<Card title="Variable Inheritance" icon="puzzle">
+		Share common configuration across environments while maintaining environment-specific overrides.
+	</Card>
+	<Card title="Multiple Export Formats" icon="document">
+		Export to .env, JSON, YAML, or load directly into your shell environment.
+	</Card>
+</CardGrid>
+
+## Quick Example
+
+```bash
+# Create a schema for your web service
+ee schema create web-service
+
+# Create a project with environments
+ee project create my-app --schema web-service
+ee project env create my-app development
+ee project env create my-app production
+
+# Configure your environments
+ee project env set my-app development \
+  PORT=3000 \
+  DATABASE_URL=postgres://localhost:5432/dev \
+  DEBUG=true
+
+# Run your application with the right config
+ee apply my-app development -- npm start
+```
+
+## Core Concepts
+
+<CardGrid>
+	<Card title="Schemas" icon="starship">
+		Define the structure and validation rules for your environment variables.
+		[Learn about schemas →](/concepts/schemas)
+	</Card>
+	<Card title="Projects" icon="rocket">
+		Organize multiple environments for a single application or service.
+		[Learn about projects →](/concepts/projects)
+	</Card>
+	<Card title="Environments" icon="moon">
+		Manage different deployment stages with environment-specific configurations.
+		[Learn about environments →](/concepts/environments)
+	</Card>
+	<Card title="Configuration Sheets" icon="document">
+		Store and manage the actual variable values with inheritance support.
+		[Learn about sheets →](/concepts/sheets)
+	</Card>
+</CardGrid>
+
+## Get Started
+
+Ready to improve your environment variable management? Start with our installation guide and learn the basics with our quick start tutorial.
+
+<CardGrid>
+	<Card title="Installation" icon="add-document">
+		Install ee on Linux, macOS, or Windows with our simple installation guide.
+		[Install ee →](/getting-started/installation)
+	</Card>
+	<Card title="Quick Start" icon="rocket">
+		Learn the basics with a hands-on tutorial covering schemas, projects, and environments.
+		[Quick start guide →](/getting-started/quick-start)
+	</Card>
+</CardGrid>

@@ -1,0 +1,345 @@
+---
+title: Schemas
+description: Define the structure and validation rules for your environment variables
+---
+
+Schemas are the foundation of `ee`'s environment variable management system. They define the structure, types, and validation rules for your environment variables, ensuring consistency and preventing configuration errors across different environments.
+
+## What are Schemas?
+
+A schema is a blueprint that describes:
+- What environment variables your application expects
+- The data type of each variable (string, number, boolean, url)
+- Validation rules (regex patterns, required fields)
+- Default values
+- Human-readable descriptions
+
+Think of schemas as "types" for your environment configuration - they provide structure and catch errors before they reach your application.
+
+## Schema Structure
+
+Here's a complete example of a schema:
+
+```yaml
+name: web-service
+description: Configuration schema for a web service application
+variables:
+  - name: PORT
+    title: Server Port
+    type: number
+    default: "3000"
+    required: true
+
+  - name: DATABASE_URL
+    title: Database Connection String
+    type: string
+    regex: "^(postgres|mysql)://.*"
+    required: true
+
+  - name: DEBUG
+    title: Enable Debug Mode
+    type: boolean
+    default: "false"
+    required: false
+
+  - name: API_BASE_URL
+    title: External API Base URL
+    type: url
+    default: "https://api.example.com"
+    required: true
+
+  - name: JWT_SECRET
+    title: JWT Signing Secret
+    type: string
+    required: true
+```
+
+## Variable Types
+
+`ee` supports several variable types with automatic validation:
+
+### String
+The most common type for text values:
+```yaml
+- name: APP_NAME
+  type: string
+  default: "MyApp"
+  required: true
+```
+
+### Number
+For numeric values (integers and floats):
+```yaml
+- name: PORT
+  type: number
+  default: "3000"
+  required: true
+
+- name: TIMEOUT_SECONDS
+  type: number
+  default: "30"
+  required: false
+```
+
+### Boolean
+For true/false values:
+```yaml
+- name: DEBUG
+  type: boolean
+  default: "false"
+  required: true
+```
+
+Accepted boolean values:
+- `true`, `false`
+- `1`, `0`
+- `yes`, `no`
+- `on`, `off`
+
+### URL
+For web addresses with automatic format validation:
+```yaml
+- name: API_BASE_URL
+  type: url
+  default: "https://api.example.com"
+  required: true
+```
+
+## Validation Rules
+
+### Required Fields
+Mark variables as required to ensure they're always set:
+```yaml
+- name: DATABASE_URL
+  type: string
+  required: true  # Must be provided in every environment
+```
+
+### Regular Expressions
+Use regex patterns for custom validation:
+```yaml
+- name: DATABASE_URL
+  type: string
+  regex: "^(postgres|mysql)://.*"  # Must start with postgres:// or mysql://
+  required: true
+
+- name: EMAIL
+  type: string
+  regex: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+  required: true
+```
+
+### Default Values
+Provide sensible defaults for optional variables:
+```yaml
+- name: LOG_LEVEL
+  type: string
+  default: "info"
+  required: false
+```
+
+## Schema Inheritance
+
+Schemas can inherit from other schemas using the `extends` field:
+
+```yaml
+# Base schema: base-service
+name: base-service
+variables:
+  - name: PORT
+    type: number
+    default: "3000"
+    required: true
+  - name: DEBUG
+    type: boolean
+    default: "false"
+    required: false
+
+---
+
+# Extended schema: web-service
+name: web-service
+extends: ["base-service"]
+variables:
+  - name: DATABASE_URL
+    type: string
+    required: true
+  - name: SESSION_SECRET
+    type: string
+    required: true
+```
+
+The `web-service` schema will include all variables from `base-service` plus its own variables.
+
+### Multiple Inheritance
+You can extend from multiple schemas:
+```yaml
+name: full-stack-app
+extends: ["base-service", "database-config", "auth-config"]
+variables:
+  - name: FRONTEND_URL
+    type: url
+    required: true
+```
+
+## Managing Schemas
+
+### Creating Schemas
+```bash
+# Create a new schema interactively
+ee schema create my-schema
+
+# Create from a file
+ee schema create my-schema --file schema.yaml
+```
+
+### Listing Schemas
+```bash
+# List all available schemas
+ee schema list
+
+# Search for schemas
+ee schema list --search web
+```
+
+### Viewing Schema Details
+```bash
+# Show full schema definition
+ee schema show my-schema
+
+# Show schema with resolved inheritance
+ee schema show my-schema --resolved
+```
+
+### Editing Schemas
+```bash
+# Edit an existing schema
+ee schema edit my-schema
+```
+
+### Deleting Schemas
+```bash
+# Delete a schema (only if not in use)
+ee schema delete my-schema
+```
+
+## Schema Versions and Evolution
+
+Schemas can evolve over time. When you modify a schema:
+
+1. **Existing environments** continue to work with their current values
+2. **New variables** get their default values automatically
+3. **Validation** applies to all environments using the schema
+4. **Removed variables** are flagged but not deleted from existing environments
+
+### Best Practices for Schema Evolution
+- Always provide default values for new required variables
+- Use descriptive names and titles
+- Document breaking changes in the schema description
+- Test schema changes in development environments first
+
+## Advanced Schema Features
+
+### Dynamic Schemas
+For advanced use cases, you can create inline schemas within config sheets:
+```yaml
+# This creates a schema on-the-fly for a specific config sheet
+name: custom-config
+schema:
+  variables:
+    - name: CUSTOM_VAR
+      type: string
+      required: true
+values:
+  CUSTOM_VAR: "custom-value"
+```
+
+### Schema References
+Reference schemas by name or UUID:
+```yaml
+# By name
+schema: "web-service"
+
+# By UUID (for remote/shared schemas)
+schema: "550e8400-e29b-41d4-a716-446655440000"
+```
+
+## Common Patterns
+
+### Database Configuration Schema
+```yaml
+name: database-config
+variables:
+  - name: DB_HOST
+    type: string
+    default: "localhost"
+    required: true
+  - name: DB_PORT
+    type: number
+    default: "5432"
+    required: true
+  - name: DB_NAME
+    type: string
+    required: true
+  - name: DB_USER
+    type: string
+    required: true
+  - name: DB_PASSWORD
+    type: string
+    required: true
+  - name: DB_SSL
+    type: boolean
+    default: "false"
+    required: false
+```
+
+### Web Service Schema
+```yaml
+name: web-service
+variables:
+  - name: PORT
+    type: number
+    default: "3000"
+    required: true
+  - name: HOST
+    type: string
+    default: "0.0.0.0"
+    required: true
+  - name: NODE_ENV
+    type: string
+    regex: "^(development|staging|production)$"
+    default: "development"
+    required: true
+  - name: LOG_LEVEL
+    type: string
+    regex: "^(debug|info|warn|error)$"
+    default: "info"
+    required: false
+```
+
+### Authentication Schema
+```yaml
+name: auth-config
+variables:
+  - name: JWT_SECRET
+    type: string
+    required: true
+  - name: JWT_EXPIRES_IN
+    type: string
+    default: "24h"
+    required: false
+  - name: BCRYPT_ROUNDS
+    type: number
+    default: "12"
+    required: false
+  - name: SESSION_TIMEOUT
+    type: number
+    default: "3600"
+    required: false
+```
+
+## Next Steps
+
+- Learn about [Projects](/concepts/projects) to organize your schemas and environments
+- Understand [Config Sheets](/concepts/sheets) for managing actual variable values
+- Explore [Environments](/concepts/environments) for multi-stage deployments
