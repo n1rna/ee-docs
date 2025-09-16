@@ -2,10 +2,24 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightThemeFlexoki from 'starlight-theme-flexoki'
+import astroExpressiveCode from 'astro-expressive-code'
 
 // https://astro.build/config
 export default defineConfig({
 	integrations: [
+		astroExpressiveCode({
+      // You can optionally override the plugin's default settings here
+      frames: {
+        // Example: Hide the "Copy to clipboard" button
+        showCopyToClipboardButton: false,
+      },
+      styleOverrides: {
+        // You can optionally override the plugin's default styles here
+        frames: {
+          shadowColor: '#124',
+        },
+      },
+    }),
 		starlight({
 			title: 'Easy Env - ee',
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/n1rna/ee-cli' }],

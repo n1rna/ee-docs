@@ -42,10 +42,11 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 	</Card>
 </CardGrid>
 
-## Quick Example
-
+<br/>
+<br/>
+<div style="display: flex; flex-direction: column; align-items: center">
+### Usage
 ```bash
-# Init ee in your project directory
 ee init
 
 # Optionally set a remote
@@ -62,6 +63,26 @@ ee apply development -- bun dev
 # Export and use sheets in different formats
 ee sheet export --env production
 ```
+</div>
+
+<div style="display: flex; flex-direction: column; align-items: center">
+### Setup
+
+```bash
+# Create a new schema for your project
+# Checkout: https://ee.n1rna.net/concepts/schemas/
+ee schema create web-service \
+  --description "Schema for web services" \
+  --variable "PORT:number:Server port:false:8080" \
+  --variable "DEBUG:boolean:Debug mode:false:false"
+
+# Instantiate ee in your directory
+ee init --schema web-service
+ee project env add staging
+```
+
+</div>
+
 
 ## Get Started
 
