@@ -44,7 +44,7 @@ import "../../styles/global.css";
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
         <p class="text-lg font-medium mb-3">Apply Environments</p>
-        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Define your variable structure upfront with schemas. Validate types, set defaults, and ensure consistency across all environments.</p>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Apply environment configurations to your shell or run commands with specific variable sets. Load from .env files, standalone sheets, or project environments.</p>
       </div>
     </div>
 		<div class="m-auto w-full">
@@ -57,24 +57,6 @@ import "../../styles/global.css";
 			ee apply production -- echo "Hello, ${APP_USER}"
 			ee apply .env -- just run
       ```
-
-      {/* ```bash
-			ee init
-
-			# Optionally set a remote
-			ee remote n1rna@ee.dev
-			ee pull
-
-			# Apply environment sheets
-			ee apply production
-
-			## Run your application with the right config
-			ee apply production -- echo "Hello, ${APP_USER}"
-			ee apply development -- bun dev
-
-			# Export and use sheets in different formats
-			ee sheet export --env production
-			``` */}
     </div>
 
   </div>
@@ -96,7 +78,7 @@ import "../../styles/global.css";
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
         <p class="text-lg font-medium mb-3">Manage projects</p>
-        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Define your variable structure upfront with schemas. Validate types, set defaults, and ensure consistency across all environments.</p>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Create and manage projects with predefined schemas. Initialize new projects, add multiple environments, and maintain consistent configuration structure.</p>
       </div>
     </div>
 
@@ -125,7 +107,7 @@ import "../../styles/global.css";
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
         <p class="text-lg font-medium mb-3">Remote sync</p>
-        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Define your variable structure upfront with schemas. Validate types, set defaults, and ensure consistency across all environments.</p>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Synchronize your configurations with remote repositories. Set up team collaboration by connecting to shared configuration sources and pulling updates.</p>
       </div>
     </div>
 		<div class="m-auto w-full">
@@ -149,7 +131,7 @@ ee -I 'XDG*' -f json
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
         <p class="text-lg font-medium mb-3">Export and import</p>
-        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Define your variable structure upfront with schemas. Validate types, set defaults, and ensure consistency across all environments.</p>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Export configurations to various formats including .env files and JSON. Import existing .env files to create new sheets, and filter variables with patterns.</p>
       </div>
     </div>
 
