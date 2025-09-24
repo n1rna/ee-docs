@@ -17,17 +17,96 @@ hero:
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
+import Carousel from '../../components/ui/carousel.tsx';
+import "../../styles/global.css";
+
 
 **ee** is a CLI tool that brings structure and validation to environment variable management. Define schemas, organize configurations across environments, and deploy with confidence knowing your variables are validated and consistent.
-<div align="center">
-  ```bash
+<div class="flex flex-col items-center pt-6 pb-8">
+  ```bash frame="code"
   curl -sSfL https://ee.n1rna.net/install.sh | sh
   ```
 </div>
 
+<CardGrid>
+	<Card title="Installation" icon="add-document">
+		Install ee on Linux, macOS, or Windows with our simple installation guide.
+		[Install ee →](/getting-started/installation)
+	</Card>
+	<Card title="Quick Start" icon="rocket">
+		Learn the basics with a hands-on tutorial covering schemas, projects, and environments.
+		[Quick start guide →](/getting-started/quick-start)
+	</Card>
+</CardGrid>
+
+
+<div class="space-y-16 my-12">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+		<div class="mt-4">
+      <div class="rounded-lg flex flex-col">
+        <p class="text-lg font-medium mb-3">Apply Environments</p>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Define your variable structure upfront with schemas. Validate types, set defaults, and ensure consistency across all environments.</p>
+      </div>
+    </div>
+		<div class="m-auto w-full">
+			```bash
+			ee apply .env
+			ee apply -s standalone-sheet
+      ee apply production # inside a project
+
+			# Run commands with the applied environment
+			ee apply production -- echo "Hello, ${APP_USER}"
+			ee apply .env -- just run
+      ```
+
+      {/* ```bash
+			ee init
+
+			# Optionally set a remote
+			ee remote n1rna@ee.dev
+			ee pull
+
+			# Apply environment sheets
+			ee apply production
+
+			## Run your application with the right config
+			ee apply production -- echo "Hello, ${APP_USER}"
+			ee apply development -- bun dev
+
+			# Export and use sheets in different formats
+			ee sheet export --env production
+			``` */}
+    </div>
+
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+			<div class="m-auto w-full">
+      ```bash
+      # Create a new schema for your project
+      ee schema create web-service \
+        --description "Schema for web services" \
+        --variable "PORT:number:Server port:false:8080" \
+        --variable "DEBUG:boolean:Debug mode:false:false"
+
+      # Instantiate ee in your directory
+      ee init --schema web-service
+      ee project env add staging
+      ```
+    </div>
+
+		<div class="mt-4">
+      <div class="rounded-lg flex flex-col">
+        <p class="text-lg font-medium mb-3">Manage projects</p>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Define your variable structure upfront with schemas. Validate types, set defaults, and ensure consistency across all environments.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 ## Features
 
-<CardGrid stagger>
+<CardGrid>
 	<Card title="Schema Validation" icon="approve-check">
 		Define variable types, patterns, and requirements. Catch configuration errors before they reach production.
 	</Card>
@@ -42,63 +121,41 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 	</Card>
 </CardGrid>
 
-<br/>
-<br/>
-<div style="display: flex; flex-direction: column; align-items: center">
-### Usage
+<div class="space-y-16 my-12">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+		<div class="mt-4">
+      <div class="rounded-lg flex flex-col">
+        <p class="text-lg font-medium mb-3">Remote sync</p>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Define your variable structure upfront with schemas. Validate types, set defaults, and ensure consistency across all environments.</p>
+      </div>
+    </div>
+		<div class="m-auto w-full">
+			```bash
+			ee init
+			ee remote set company@easyenv.cloud
+			ee pull
+      ```
+    </div>
+
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+			<div class="m-auto w-full">
 ```bash
-ee init
-
-# Optionally set a remote
-ee remote n1rna@ee.dev
-ee pull
-
-# Apply environment sheets
-ee apply production
-
-## Run your application with the right config
-ee apply production -- echo "Hello, ${APP_USER}"
-ee apply development -- bun dev
-
-# Export and use sheets in different formats
 ee sheet export --env production
+ee sheet create --import .env
+ee -I 'XDG*' -f json
 ```
+    </div>
+
+		<div class="mt-4">
+      <div class="rounded-lg flex flex-col">
+        <p class="text-lg font-medium mb-3">Export and import</p>
+        <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Define your variable structure upfront with schemas. Validate types, set defaults, and ensure consistency across all environments.</p>
+      </div>
+    </div>
+
+  </div>
 </div>
-
-<div style="display: flex; flex-direction: column; align-items: center">
-### Setup
-
-```bash
-# Create a new schema for your project
-# Checkout: https://ee.n1rna.net/concepts/schemas/
-ee schema create web-service \
-  --description "Schema for web services" \
-  --variable "PORT:number:Server port:false:8080" \
-  --variable "DEBUG:boolean:Debug mode:false:false"
-
-# Instantiate ee in your directory
-ee init --schema web-service
-ee project env add staging
-```
-
-</div>
-
-
-## Get Started
-
-Ready to improve your environment variable management? Start with our installation guide and learn the basics with our quick start tutorial.
-
-<CardGrid>
-	<Card title="Installation" icon="add-document">
-		Install ee on Linux, macOS, or Windows with our simple installation guide.
-		[Install ee →](/getting-started/installation)
-	</Card>
-	<Card title="Quick Start" icon="rocket">
-		Learn the basics with a hands-on tutorial covering schemas, projects, and environments.
-		[Quick start guide →](/getting-started/quick-start)
-	</Card>
-</CardGrid>
-
 
 ## Core Concepts
 
