@@ -1,0 +1,732 @@
+---
+title: Project Configuration
+description: Learn how to configure and manage projects using the .ee configuration file
+---
+
+The `.ee` file is the heart of project configuration in ee-cli. It's a JSON-based configuration file that defines your project structure, schema references, and environment definitions. This file-first approach makes your project configuration portable, versionable, and self-contained.
+
+## What is a .ee File?
+
+The `.ee` file is a project configuration file that lives at the root of your project directory. It contains:
+
+- **Project metadata** (name, remote URL)
+- **Schema definition** (inline or by reference)
+- **Environment definitions** (how environments are composed)
+
+Unlike traditional environment management tools that rely on centralized databases or remote APIs, ee-cli uses the `.ee` file to make your project configuration:
+- **Portable**: The entire configuration travels with your codebase
+- **Versionable**: Track changes in git alongside your code
+- **Self-contained**: No external dependencies required to understand your configuration
+
+## File Structure
+
+### Basic Structure
+
+```json
+{
+  "project": "my-web-app",
+  "remote": "https://api.ee.dev",
+  "schema": {
+    "ref": "local://web-service"
+  },
+  "environments": {
+    "development": {
+      "sheets": [".env.development"]
+    },
+    "production": {
+      "sheets": [".env.production"]
+    }
+  }
+}
+```
+
+### Fields Explained
+
+#### `project` (required)
+The unique name or identifier for your project.
+
+```json
+{
+  "project": "my-api-service"
+}
+```
+
+#### `remote` (optional)
+The remote API endpoint URL for synchronization with a remote ee server.
+
+```json
+{
+  "remote": "https://ee.example.com"
+}
+```
+
+#### `schema` (required)
+Defines the schema for environment variables. Can be:
+- A reference to a local schema
+- A reference to a remote schema
+- Inline variable definitions
+- Schema inheritance using `extends`
+
+```json
+{
+  "schema": {
+    "ref": "local://web-service"
+  }
+}
+```
+
+#### `environments` (required)
+Defines the available environments and how they're composed from config sheets.
+
+```json
+{
+  "environments": {
+    "development": {
+      "sheets": [".env.development"]
+    },
+    "production": {
+      "sheets": [".env.production", "local://prod-secrets"]
+    }
+  }
+}
+```
+
+## Schema Configuration
+
+The schema section defines the structure and validation rules for your environment variables.
+
+### Schema by Reference (Local)
+
+Reference a locally stored schema:
+
+```json
+{
+  "schema": {
+    "ref": "local://web-service"
+  }
+}
+```
+
+This references a schema named "web-service" from your local ee storage (`~/.ee/schemas/`).
+
+### Schema by Reference (Remote)
+
+Reference a schema from a remote server:
+
+```json
+{
+  "schema": {
+    "ref": "remote://schemas/web-service"
+  }
+}
+```
+
+### Inline Schema
+
+Define variables directly in the `.ee` file:
+
+```json
+{
+  "schema": {
+    "variables": {
+      "PORT": {
+        "name": "PORT",
+        "type": "number",
+        "title": "Server port",
+        "required": false,
+        "default": "3000"
+      },
+      "NODE_ENV": {
+        "name": "NODE_ENV",
+        "type": "string",
+        "title": "Node environment",
+        "required": true,
+        "default": "development"
+      },
+      "DEBUG": {
+        "name": "DEBUG",
+        "type": "boolean",
+        "title": "Debug mode",
+        "required": false,
+        "default": "false"
+      }
+    }
+  }
+}
+```
+
+### Schema Inheritance
+
+Extend existing schemas:
+
+```json
+{
+  "schema": {
+    "extends": ["local://base-schema", "local://auth-schema"],
+    "variables": {
+      "CUSTOM_VAR": {
+        "name": "CUSTOM_VAR",
+        "type": "string",
+        "title": "Custom variable",
+        "required": false
+      }
+    }
+  }
+}
+```
+
+Variables defined inline override inherited variables with the same name.
+
+## Environment Definitions
+
+Environments define how configuration is composed for different deployment stages.
+
+### Single Sheet Environment
+
+```json
+{
+  "environments": {
+    "development": {
+      "sheets": [".env.development"]
+    }
+  }
+}
+```
+
+### Multiple Sheets (Stacking)
+
+Sheets are merged in order, with later sheets overriding earlier ones:
+
+```json
+{
+  "environments": {
+    "production": {
+      "sheets": [
+        ".env",                      // Base configuration
+        ".env.production",           // Production overrides
+        "local://prod-secrets"       // Secret values from local storage
+      ]
+    }
+  }
+}
+```
+
+**Merge Order**: Each sheet in the array is merged sequentially. If the same variable appears in multiple sheets, the value from the last sheet wins.
+
+### Sheet Types
+
+Environments can reference different types of sheets:
+
+#### 1. .env Files
+```json
+{
+  "sheets": [".env", ".env.development", ".env.local"]
+}
+```
+
+#### 2. Local Config Sheets
+```json
+{
+  "sheets": ["local://shared-config", "local://dev-secrets"]
+}
+```
+
+#### 3. Remote Config Sheets
+```json
+{
+  "sheets": ["remote://configs/shared", "remote://configs/production"]
+}
+```
+
+#### 4. Inline Values
+```json
+{
+  "sheets": [
+    {
+      "DEBUG": "true",
+      "LOG_LEVEL": "debug",
+      "PORT": "3000"
+    }
+  ]
+}
+```
+
+### Mixed Sheet Types
+
+Combine different sheet types for flexibility:
+
+```json
+{
+  "environments": {
+    "staging": {
+      "sheets": [
+        ".env.base",                    // File-based base config
+        "local://shared-config",        // Local config sheet
+        {                               // Inline overrides
+          "FEATURE_FLAG_NEW_UI": "true",
+          "DEBUG": "false"
+        },
+        "remote://configs/staging"      // Remote config sheet
+      ]
+    }
+  }
+}
+```
+
+## Project Discovery
+
+The ee-cli tool automatically discovers your project configuration by searching for a `.ee` file.
+
+### Discovery Process
+
+1. **Current Directory**: Checks for `.ee` in the current working directory
+2. **Parent Directories**: Walks up the directory tree looking for `.ee`
+3. **Stops at**: First `.ee` file found or filesystem root
+
+### Check Project Context
+
+```bash
+# Check if you're in a project directory
+ls -la | grep .ee
+
+# The .ee file should exist in your project root
+```
+
+When you run ee commands, the tool:
+1. Searches for `.ee` file
+2. Loads project configuration
+3. Uses the configuration for command context
+
+## Initializing Projects
+
+### Basic Initialization
+
+```bash
+# Initialize with current directory name
+ee init
+
+# Initialize with specific project name
+ee init my-api
+```
+
+This creates a `.ee` file with:
+- Default project name
+- Standard environments (development, production)
+- Default inline schema with common variables
+
+### With Schema Reference
+
+```bash
+# Initialize with a local schema
+ee init my-api --schema web-service
+
+# Initialize with inline variables
+ee init my-api \
+  --var "PORT:number:Server port:false:3000" \
+  --var "NODE_ENV:string:Environment:true:development"
+```
+
+### With Remote URL
+
+```bash
+# Initialize with remote synchronization
+ee init my-api --remote https://api.ee.dev
+```
+
+### Force Overwrite
+
+```bash
+# Overwrite existing .ee file
+ee init my-api --force
+```
+
+## Working with Project Configuration
+
+### View Current Project
+
+```bash
+# Show project information (reads from .ee file)
+cat .ee | jq '.'
+```
+
+### Validate Configuration
+
+```bash
+# The apply command validates against the schema
+ee apply development --dry-run
+```
+
+### Update Configuration
+
+Edit the `.ee` file directly:
+
+```bash
+# Using your preferred editor
+vim .ee
+code .ee
+nano .ee
+```
+
+Or use the init command with --force to regenerate:
+
+```bash
+ee init my-api --schema new-schema --force
+```
+
+## Environment Management
+
+### List Environments
+
+```bash
+# Environments are defined in .ee file
+cat .ee | jq '.environments | keys'
+```
+
+### Apply Environment
+
+```bash
+# Apply environment from .ee configuration
+ee apply development
+
+# Run command with environment
+ee apply production -- npm start
+
+# Show what would be applied
+ee apply staging --dry-run
+```
+
+## Sheet Stacking & Inheritance
+
+Sheet stacking allows you to compose configuration from multiple sources.
+
+### Stacking Order
+
+Sheets are merged **left to right**, with later values overriding earlier ones:
+
+```json
+{
+  "environments": {
+    "production": {
+      "sheets": [
+        ".env.base",           // 1. Base values loaded first
+        ".env.production",     // 2. Production values override base
+        "local://secrets"      // 3. Secrets override everything
+      ]
+    }
+  }
+}
+```
+
+**Example Flow**:
+```
+.env.base:           PORT=3000, DEBUG=true
+.env.production:     DEBUG=false, DB_HOST=prod.example.com
+local://secrets:     DB_PASSWORD=secret123
+
+Final result:        PORT=3000, DEBUG=false, DB_HOST=prod.example.com, DB_PASSWORD=secret123
+```
+
+### Common Patterns
+
+#### Base + Environment Pattern
+```json
+{
+  "environments": {
+    "development": {
+      "sheets": [".env", ".env.development"]
+    },
+    "production": {
+      "sheets": [".env", ".env.production"]
+    }
+  }
+}
+```
+
+#### Shared + Private Pattern
+```json
+{
+  "environments": {
+    "production": {
+      "sheets": [
+        "local://shared-config",    // Shared across team
+        ".env.local"                // Personal overrides (gitignored)
+      ]
+    }
+  }
+}
+```
+
+#### Layered Configuration
+```json
+{
+  "environments": {
+    "staging": {
+      "sheets": [
+        ".env.defaults",           // Default values
+        "local://team-config",     // Team-wide config
+        "remote://staging-config", // Remote staging config
+        ".env.local"               // Local overrides
+      ]
+    }
+  }
+}
+```
+
+## Remote Synchronization
+
+When a remote URL is configured, you can sync schemas and config sheets.
+
+### Push Local to Remote
+
+```bash
+# Push all entities
+ee push
+
+# Push only schemas
+ee push --schemas
+
+# Push only config sheets
+ee push --sheets
+
+# Dry run to see what would be pushed
+ee push --dry-run
+```
+
+### Pull Remote to Local
+
+```bash
+# Pull all entities
+ee pull
+
+# Pull only schemas
+ee pull --schemas
+
+# Pull only config sheets
+ee pull --sheets
+
+# Dry run to see what would be pulled
+ee pull --dry-run
+```
+
+### Sync Workflow
+
+```bash
+# 1. Configure remote in .ee file
+{
+  "remote": "https://api.ee.dev"
+}
+
+# 2. Pull shared schemas and config sheets
+ee pull
+
+# 3. Work locally
+ee apply development -- npm start
+
+# 4. Push changes back
+ee push
+```
+
+## Examples
+
+### Web Application
+
+```json
+{
+  "project": "my-web-app",
+  "remote": "https://api.ee.dev",
+  "schema": {
+    "ref": "local://web-service"
+  },
+  "environments": {
+    "development": {
+      "sheets": [".env", ".env.development", ".env.local"]
+    },
+    "staging": {
+      "sheets": [".env", ".env.staging", "remote://staging-secrets"]
+    },
+    "production": {
+      "sheets": [".env", ".env.production", "remote://prod-secrets"]
+    }
+  }
+}
+```
+
+### Microservice
+
+```json
+{
+  "project": "user-service",
+  "schema": {
+    "extends": ["local://base-service", "local://auth-service"],
+    "variables": {
+      "USER_SERVICE_PORT": {
+        "name": "USER_SERVICE_PORT",
+        "type": "number",
+        "title": "User service port",
+        "required": true,
+        "default": "3001"
+      }
+    }
+  },
+  "environments": {
+    "development": {
+      "sheets": [
+        "local://shared-dev-config",
+        ".env.development"
+      ]
+    },
+    "production": {
+      "sheets": [
+        "local://shared-prod-config",
+        "remote://user-service-prod"
+      ]
+    }
+  }
+}
+```
+
+### Monorepo with Multiple Services
+
+```json
+{
+  "project": "monorepo-services",
+  "schema": {
+    "ref": "local://monorepo-schema"
+  },
+  "environments": {
+    "development": {
+      "sheets": [
+        ".env.shared",
+        ".env.development",
+        {
+          "SERVICE_API_ENABLED": "true",
+          "SERVICE_WORKER_ENABLED": "true",
+          "SERVICE_SCHEDULER_ENABLED": "false"
+        }
+      ]
+    },
+    "production": {
+      "sheets": [
+        ".env.shared",
+        "remote://production-base",
+        "remote://production-secrets"
+      ]
+    }
+  }
+}
+```
+
+## Best Practices
+
+### File Organization
+
+```
+my-project/
+├── .ee                      # Project configuration
+├── .env                     # Base/default values (safe to commit)
+├── .env.development         # Development config (safe to commit)
+├── .env.production          # Production config template (safe to commit)
+├── .env.local               # Personal overrides (gitignored)
+├── .gitignore              # Ignore .env.local and sensitive files
+└── src/
+```
+
+### Version Control
+
+**Commit to git**:
+- `.ee` file
+- `.env` (base/default values only)
+- `.env.development`
+- `.env.production` (as templates, without secrets)
+
+**Add to .gitignore**:
+```gitignore
+.env.local
+.env.*.local
+*.secret.env
+```
+
+### Security
+
+1. **Never commit secrets** to `.ee` file
+2. **Use local config sheets** for team secrets
+3. **Use remote config sheets** for production secrets
+4. **Reference sheets** instead of inline values for sensitive data
+5. **Use .env.local** for personal overrides (gitignored)
+
+### Schema Management
+
+1. **Use schema references** instead of inline for large schemas
+2. **Version schemas** alongside your application
+3. **Use schema inheritance** to avoid duplication
+4. **Keep schemas focused** - one schema per service type
+
+### Environment Strategy
+
+1. **Consistent naming**: development, staging, production
+2. **Progressive complexity**: simple dev → complex prod
+3. **Sheet stacking**: base → environment → secrets
+4. **Local overrides**: always allow .env.local at the end
+
+## Troubleshooting
+
+### .ee File Not Found
+
+```bash
+# Check if .ee exists
+ls -la .ee
+
+# Initialize if missing
+ee init
+```
+
+### Invalid JSON
+
+```bash
+# Validate JSON syntax
+cat .ee | jq '.'
+
+# Common issues:
+# - Missing quotes around strings
+# - Trailing commas
+# - Unescaped backslashes
+```
+
+### Schema Not Found
+
+```bash
+# List available local schemas
+ee schema list
+
+# Pull schemas from remote
+ee pull --schemas
+```
+
+### Environment Not Found
+
+```bash
+# Check environments in .ee
+cat .ee | jq '.environments | keys'
+
+# Add missing environment
+# Edit .ee and add environment definition
+```
+
+### Sheet Resolution Errors
+
+```bash
+# Test environment resolution
+ee apply development --dry-run
+
+# Check if referenced sheets exist:
+# - .env files: ls -la .env*
+# - Local sheets: ee sheet list
+# - Remote sheets: ee pull --sheets
+```
+
+## Next Steps
+
+- Learn about [Schemas](/cli/schemas) for defining variable structures
+- Explore [Config Sheets](/cli/config-sheets) for managing configuration values
+- Understand the [Apply Command](/cli/apply) for using environments
+- Read about the [Root Command](/cli/root) for environment inspection

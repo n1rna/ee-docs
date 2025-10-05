@@ -34,12 +34,13 @@ export default defineConfig({
 					],
 				},
 				{
-					label: "Core Concepts",
+					label: "CLI Documentation",
 					items: [
-						{ label: "Schemas", slug: "concepts/schemas" },
-						{ label: "Sheets", slug: "concepts/sheets" },
-						{ label: "Projects", slug: "concepts/projects" },
-						{ label: "Environments", slug: "concepts/environments" },
+						{ label: "Project Configuration", slug: "cli/project-configuration" },
+						{ label: "Schemas", slug: "cli/schemas" },
+						{ label: "Config Sheets", slug: "cli/config-sheets" },
+						{ label: "Apply Command", slug: "cli/apply" },
+						{ label: "Root Command", slug: "cli/root-command" },
 					],
 				},
 			],

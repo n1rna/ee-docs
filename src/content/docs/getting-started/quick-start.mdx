@@ -3,209 +3,468 @@ title: Quick Start
 description: Get up and running with ee in minutes
 ---
 
-This guide will walk you through your first steps with `ee`, from creating a project to managing environment variables across different environments.
+This guide will walk you through your first steps with `ee`, from initializing a project to managing environment variables across different environments.
 
-## Step 1: Create Your First Schema
+## Step 1: Initialize Your Project
 
-A schema defines the structure and validation rules for your environment variables. Let's create a simple web application schema:
-
-```bash
-ee schema create web-service
-```
-
-This will open your default editor with a template. Edit it to look like this:
-
-```yaml
-name: web-service
-description: Schema for web service environment variables
-variables:
-  - name: PORT
-    title: Server Port
-    type: number
-    default: "3000"
-    required: true
-
-  - name: DATABASE_URL
-    title: Database Connection URL
-    type: string
-    regex: "^(postgres|mysql)://.*"
-    required: true
-
-  - name: DEBUG
-    title: Debug Mode
-    type: boolean
-    default: "false"
-    required: false
-
-  - name: API_KEY
-    title: Third-party API Key
-    type: string
-    required: true
-```
-
-Save and close the editor to create the schema.
-
-## Step 2: Create a Project
-
-Projects organize your environments and associate them with schemas:
+Navigate to your project directory and initialize ee:
 
 ```bash
-ee project create my-web-app --schema web-service
+cd my-web-app
+ee init
 ```
 
-This creates a project named "my-web-app" that uses the "web-service" schema.
+This creates a `.ee` configuration file in your project root with:
+- Default project name (from directory name)
+- Standard environments (development, production)
+- Default inline schema with common variables
 
-## Step 3: Create Environments
+**What gets created:**
 
-Most applications need different configurations for development and production:
+`.ee` file:
+```json
+{
+  "project": "my-web-app",
+  "schema": {
+    "variables": {
+      "NODE_ENV": {
+        "name": "NODE_ENV",
+        "type": "string",
+        "title": "Node environment",
+        "required": false,
+        "default": "development"
+      },
+      "PORT": {
+        "name": "PORT",
+        "type": "number",
+        "title": "Server port",
+        "required": false,
+        "default": "3000"
+      },
+      "DEBUG": {
+        "name": "DEBUG",
+        "type": "boolean",
+        "title": "Debug mode",
+        "required": false,
+        "default": "false"
+      }
+    }
+  },
+  "environments": {
+    "development": {
+      "sheets": [".env.development"]
+    },
+    "production": {
+      "sheets": [".env.production"]
+    }
+  }
+}
+```
+
+Sample `.env` files are also created:
+- `.env.development`
+- `.env.production`
+
+## Step 2: Configure Your Environments
+
+Edit the generated `.env` files with your actual configuration:
+
+**`.env.development`**:
+```bash
+# .env.development environment configuration
+# Edit the values below according to your needs
+
+# title: Node environment
+# type: string
+# default: development
+NODE_ENV=development
+
+# title: Server port
+# type: number
+# default: 3000
+PORT=3000
+
+# title: Debug mode
+# type: boolean
+# default: false
+DEBUG=true
+
+# Add your custom variables
+DATABASE_URL=postgres://localhost:5432/myapp_dev
+API_KEY=dev-api-key-123
+```
+
+**`.env.production`**:
+```bash
+# .env.production environment configuration
+
+NODE_ENV=production
+PORT=8080
+DEBUG=false
+
+DATABASE_URL=postgres://prod-db:5432/myapp
+API_KEY=prod-api-key-xyz
+```
+
+## Step 3: Apply Your Environment
+
+### Preview what will be applied
 
 ```bash
-# Create development environment
-ee project env create my-web-app development
-
-# Create production environment
-ee project env create my-web-app production
+# Dry-run to see what variables will be loaded
+ee apply development --dry-run
 ```
 
-## Step 4: Configure Environment Variables
+Output:
+```
+Applying environment 'development'
+Environment variables that would be applied:
+export NODE_ENV=development
+export PORT=3000
+export DEBUG=true
+export DATABASE_URL=postgres://localhost:5432/myapp_dev
+export API_KEY=dev-api-key-123
+```
 
-Set up your development environment first:
+### Load into a new shell
 
 ```bash
-ee project env edit my-web-app development
+# Start a new shell with development environment loaded
+ee apply development
 ```
 
-This opens an editor where you can set your variables:
-
-```yaml
-PORT: "3000"
-DATABASE_URL: "postgres://user:pass@localhost:5432/myapp_dev"
-DEBUG: "true"
-API_KEY: "dev-api-key-123"
+You'll see:
+```
+Applying environment 'development'
+Starting shell with environment variables applied
+Shell: /bin/bash
+Applied 5 environment variables
 ```
 
-Now configure production:
-
+Now check your variables:
 ```bash
-ee project env edit my-web-app production
+echo $NODE_ENV    # development
+echo $PORT        # 3000
+echo $DEBUG       # true
 ```
 
-```yaml
-PORT: "80"
-DATABASE_URL: "postgres://user:pass@prod-db:5432/myapp"
-DEBUG: "false"
-API_KEY: "prod-api-key-xyz"
-```
-
-## Step 5: Use Your Environment Variables
-
-### Load variables into your shell
+Exit the shell to return to your original environment:
 ```bash
-# Start a new shell with development variables loaded
-ee apply my-web-app development
-
-# Check that variables are set
-echo $PORT
-echo $DATABASE_URL
+exit
 ```
 
-### Run commands with environment variables
+### Run a command with the environment
+
 ```bash
 # Run your application with development config
-ee apply my-web-app development -- npm start
+ee apply development -- npm start
 
 # Run with production config
-ee apply my-web-app production -- npm start
+ee apply production -- npm start
+
+# Run tests
+ee apply development -- npm test
 ```
 
-### Export to different formats
+## Step 4: Advanced Configuration
+
+### Create a Custom Schema
+
+Create a schema for more complex validation:
+
+```bash
+ee schema create web-service \
+  --description "Web service configuration" \
+  --variable "PORT:number:Server port:true:3000" \
+  --variable "DATABASE_URL:url:Database connection:true" \
+  --variable "DEBUG:boolean:Debug mode:false:false" \
+  --variable "API_KEY:string:API authentication key:true"
+```
+
+### Update Your Project to Use the Schema
+
+Edit your `.ee` file to reference the schema:
+
+```json
+{
+  "project": "my-web-app",
+  "schema": {
+    "ref": "local://web-service"
+  },
+  "environments": {
+    "development": {
+      "sheets": [".env.development"]
+    },
+    "production": {
+      "sheets": [".env.production"]
+    }
+  }
+}
+```
+
+### Use Config Sheets Instead of .env Files
+
+Create a config sheet:
+
+```bash
+ee sheet create dev-config \
+  --schema web-service \
+  --value PORT=3000 \
+  --value DATABASE_URL=postgres://localhost:5432/myapp_dev \
+  --value DEBUG=true \
+  --value API_KEY=dev-key-123
+```
+
+Update `.ee` to use the config sheet:
+
+```json
+{
+  "environments": {
+    "development": {
+      "sheets": ["local://dev-config"]
+    }
+  }
+}
+```
+
+### Stack Multiple Sheets
+
+Create a base configuration and environment-specific overrides:
+
+**Base .env file** (`.env`):
+```bash
+APP_NAME=MyWebApp
+APP_VERSION=1.0.0
+LOG_FORMAT=json
+```
+
+**Environment-specific** (`.env.development`):
+```bash
+PORT=3000
+DEBUG=true
+DATABASE_URL=postgres://localhost:5432/myapp_dev
+```
+
+**Update `.ee`** to stack them:
+```json
+{
+  "environments": {
+    "development": {
+      "sheets": [
+        ".env",              // Base config
+        ".env.development"   // Dev overrides
+      ]
+    },
+    "production": {
+      "sheets": [
+        ".env",              // Base config
+        ".env.production"    // Prod overrides
+      ]
+    }
+  }
+}
+```
+
+## Step 5: Export and Share
+
+### Export to Different Formats
+
 ```bash
 # Export as .env file
-ee export my-web-app development --format env > .env.development
+ee apply development --dry-run --format dotenv > .env.local
 
 # Export as JSON
-ee export my-web-app production --format json > config.json
+ee apply production --dry-run --format json > config.json
 
-# Export as YAML
-ee export my-web-app production --format yaml > config.yaml
+# Export as environment variables (for shell sourcing)
+ee apply development --dry-run --format env > env.sh
 ```
 
-## Step 6: View Your Configuration
-
-List all your projects and environments:
+### Use with Docker
 
 ```bash
-# List all projects
-ee project list
+# Export for Docker
+ee apply production --dry-run --format dotenv > .env.docker
 
-# List environments for a project
-ee project env list my-web-app
-
-# Show schema details
-ee schema show web-service
+# Use in docker-compose
+docker-compose --env-file .env.docker up
 ```
 
-## Working with Standalone Sheets
+## Step 6: View Current Environment
 
-You can also create standalone configuration sheets that aren't tied to a project:
+Use the root `ee` command to inspect your current shell environment:
 
 ```bash
-# Create a standalone sheet
-ee sheet create database-config --schema web-service
+# Show all environment variables
+ee
 
-# Edit the sheet
-ee sheet edit database-config
+# Filter specific variables
+ee --filter 'NODE*,PORT,DEBUG'
 
-# Apply the sheet
-ee apply database-config -- echo "Database config loaded"
+# Show as JSON
+ee --format json
+
+# Mask sensitive values
+ee --filter '*KEY*,*SECRET*,*TOKEN*' --mask
 ```
 
-## Validation and Error Handling
+## Working with Remote Schemas and Sheets
 
-`ee` validates your variables against the schema. Try setting an invalid value:
+### Configure Remote URL
+
+Edit your `.ee` file to add a remote URL:
+
+```json
+{
+  "project": "my-web-app",
+  "remote": "https://api.ee.dev",
+  "schema": {
+    "ref": "local://web-service"
+  },
+  "environments": { ... }
+}
+```
+
+### Pull Shared Resources
 
 ```bash
-ee project env set my-web-app development PORT=invalid
+# Pull schemas from remote
+ee pull --schemas
+
+# Pull config sheets from remote
+ee pull --sheets
+
+# Pull everything
+ee pull
 ```
 
-You'll get a validation error because "invalid" is not a valid number.
+### Push Your Changes
 
-## Next Steps
+```bash
+# Push schemas to remote
+ee push --schemas
 
-Now that you understand the basics, explore these topics:
+# Push config sheets to remote
+ee push --sheets
 
-- **[Schemas](/concepts/schemas)** - Learn about variable types, validation, and schema inheritance
-- **[Projects](/concepts/projects)** - Understand project organization and management
-- **[Sheets](/concepts/sheets)** - Work with standalone configuration sheets
-- **[Environments](/concepts/environments)** - Advanced environment management patterns
+# Push everything
+ee push
+```
+
+## Common Workflows
+
+### Development Workflow
+
+```bash
+# 1. Initialize project
+cd my-project
+ee init
+
+# 2. Edit development configuration
+vim .env.development
+
+# 3. Run application
+ee apply development -- npm run dev
+
+# 4. Run tests
+ee apply development -- npm test
+```
+
+### Production Deployment
+
+```bash
+# 1. Preview production config
+ee apply production --dry-run
+
+# 2. Export for deployment
+ee apply production --dry-run --format dotenv > .env.production
+
+# 3. Deploy
+ee apply production -- ./deploy.sh
+```
+
+### Team Collaboration
+
+```bash
+# 1. Pull latest schemas and sheets
+ee pull
+
+# 2. Work on your feature
+ee apply development -- npm start
+
+# 3. Share your schema changes
+ee push --schemas
+```
 
 ## Quick Reference
 
-Here are the most common commands you'll use:
-
+### Project Setup
 ```bash
-# Schema management
-ee schema create <name>
-ee schema list
-ee schema show <name>
-
-# Project management
-ee project create <name> --schema <schema>
-ee project list
-ee project env create <project> <env>
-ee project env list <project>
-
-# Setting variables
-ee project env edit <project> <env>
-ee project env set <project> <env> KEY=value
-
-# Using variables
-ee apply <project> <env>                    # Load into shell
-ee apply <project> <env> -- <command>       # Run command
-ee export <project> <env> --format <fmt>    # Export variables
-
-# Standalone sheets
-ee sheet create <name> --schema <schema>
-ee sheet edit <name>
-ee apply <name> -- <command>
+ee init                              # Initialize project in current directory
+ee init my-project                   # Initialize with specific name
+ee init --schema web-service         # Initialize with existing schema
+ee init --remote https://api.ee.dev  # Initialize with remote URL
 ```
+
+### Schema Management
+```bash
+ee schema create <name>              # Create schema interactively
+ee schema list                       # List all schemas
+ee schema show <name>                # Show schema details
+ee schema edit <name>                # Edit schema
+ee schema delete <name>              # Delete schema
+```
+
+### Config Sheet Management
+```bash
+ee sheet create <name> --schema <schema>  # Create config sheet
+ee sheet list                             # List all sheets
+ee sheet show <name>                      # Show sheet details
+ee sheet edit <name>                      # Edit sheet
+ee sheet set <name> KEY value             # Set individual value
+ee sheet export <name> --format env       # Export sheet
+```
+
+### Environment Management
+```bash
+ee apply <env>                       # Start shell with environment
+ee apply <env> -- <command>          # Run command with environment
+ee apply <env> --dry-run             # Preview environment
+ee apply .env.file                   # Apply .env file directly
+```
+
+### Inspection
+```bash
+ee                                   # Show all current env vars
+ee --filter 'PATTERN*'              # Filter env vars
+ee --format json                     # Output as JSON
+ee --mask                            # Mask sensitive values
+```
+
+### Remote Sync
+```bash
+ee pull                              # Pull all from remote
+ee pull --schemas                    # Pull only schemas
+ee pull --sheets                     # Pull only sheets
+ee push                              # Push all to remote
+ee push --schemas                    # Push only schemas
+ee push --sheets                     # Push only sheets
+```
+
+## Next Steps
+
+Now that you understand the basics, dive deeper into:
+
+- **[Project Configuration](/cli/project-configuration)** - Learn about the `.ee` file structure and advanced features
+- **[Schemas](/cli/schemas)** - Define validation rules and variable types
+- **[Config Sheets](/cli/config-sheets)** - Manage configuration values locally and remotely
+- **[Apply Command](/cli/apply)** - Master environment application and command execution
+- **[Root Command](/cli/root)** - Inspect and filter current environment variables
+
+## Tips
+
+1. **Always use dry-run first**: `ee apply production --dry-run` before deploying
+2. **Never commit secrets**: Keep sensitive `.env` files in `.gitignore`
+3. **Use sheet stacking**: Combine base config with environment-specific overrides
+4. **Leverage schemas**: Define validation rules to catch errors early
+5. **Remote sync for teams**: Use push/pull for sharing schemas and config sheets

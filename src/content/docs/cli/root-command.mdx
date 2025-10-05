@@ -1,0 +1,635 @@
+---
+title: Root Command (ee)
+description: Display and filter environment variables with the ee command
+---
+
+The root `ee` command provides a powerful way to display, filter, and inspect environment variables in your current shell. When run without subcommands, it shows all environment variables with advanced filtering and formatting options.
+
+## Basic Usage
+
+### Display All Environment Variables
+
+```bash
+# Show all environment variables
+ee
+```
+
+Output:
+```
+PATH=/usr/local/bin:/usr/bin:/bin
+USER=john
+HOME=/home/john
+SHELL=/bin/bash
+NODE_ENV=development
+...
+```
+
+### Output Formats
+
+The root command supports multiple output formats.
+
+#### Environment Format (default)
+
+Standard KEY=VALUE format:
+
+```bash
+ee --format env
+```
+
+Output:
+```
+PATH=/usr/local/bin:/usr/bin:/bin
+USER=john
+HOME=/home/john
+NODE_ENV=development
+```
+
+#### JSON Format
+
+JSON object with key-value pairs:
+
+```bash
+ee --format json
+```
+
+Output:
+```json
+{
+  "PATH": "/usr/local/bin:/usr/bin:/bin",
+  "USER": "john",
+  "HOME": "/home/john",
+  "NODE_ENV": "development"
+}
+```
+
+#### DotEnv Format
+
+.env file format:
+
+```bash
+ee --format dotenv
+```
+
+Output:
+```
+PATH=/usr/local/bin:/usr/bin:/bin
+USER=john
+HOME=/home/john
+NODE_ENV=development
+```
+
+## Filtering Environment Variables
+
+The root command provides powerful filtering using wildcard patterns.
+
+### Filter Flag
+
+Use the `-I` or `--filter` flag to filter variables:
+
+```bash
+# Show only PATH-related variables
+ee --filter 'PATH*'
+
+# Show only NODE-related variables
+ee --filter 'NODE*'
+```
+
+### Multiple Patterns
+
+Combine multiple patterns using separators:
+- **Comma (,)**
+- **Pipe (|)**
+- **Forward slash (/)**
+
+```bash
+# Using comma
+ee --filter 'PATH*,USER*'
+
+# Using pipe
+ee --filter 'PATH*|USER*'
+
+# Using slash
+ee --filter 'PATH*/USER*'
+```
+
+All three separators work identically - choose based on your preference or shell escaping needs.
+
+### Pattern Syntax
+
+Patterns use wildcard matching (similar to shell glob patterns):
+
+- `*`: Matches any characters
+- `?`: Matches a single character
+- `[abc]`: Matches one of the characters in brackets
+
+**Examples**:
+
+```bash
+# All variables starting with NODE
+ee --filter 'NODE*'
+
+# All variables ending with _URL
+ee --filter '*_URL'
+
+# Variables containing CONFIG
+ee --filter '*CONFIG*'
+
+# Variables starting with DB or DATABASE
+ee --filter 'DB*,DATABASE*'
+```
+
+### Negative Patterns (Exclusions)
+
+Exclude variables by prefixing patterns with `!`:
+
+```bash
+# Show all variables EXCEPT those starting with CLAUDE
+ee --filter '!CLAUDE*'
+
+# Show all variables EXCEPT CLAUDE* and NODE*
+ee --filter '!CLAUDE*,!NODE*'
+
+# Show PATH* but exclude PATHEXT
+ee --filter 'PATH*,!PATHEXT'
+```
+
+### Combining Positive and Negative Patterns
+
+Mix inclusion and exclusion patterns:
+
+```bash
+# Show NODE* variables but exclude NODE_OPTIONS
+ee --filter 'NODE*,!NODE_OPTIONS'
+
+# Show all *_URL variables except CLAUDE_URL
+ee --filter '*_URL,!CLAUDE_URL'
+
+# Show PATH, USER, HOME, but exclude PATHEXT
+ee --filter 'PATH,USER,HOME,!PATHEXT'
+```
+
+**Filter Logic**:
+1. If negative pattern matches → **exclude** the variable
+2. If any positive pattern matches → **include** the variable
+3. If only negative patterns → include everything except negatives
+4. If positive patterns exist → only include matching variables
+
+## Masking Sensitive Values
+
+Protect sensitive information by masking values.
+
+### Mask Flag
+
+```bash
+# Mask potentially sensitive environment variables
+ee --mask
+
+# or
+ee -m
+```
+
+**Auto-detected sensitive patterns**:
+- Variables containing: `KEY`, `SECRET`, `TOKEN`, `PASSWORD`, `PASS`, `AUTH`, `CREDENTIAL`, `API_KEY`
+- Values are replaced with: `***MASKED***`
+
+**Example**:
+
+Without masking:
+```bash
+ee --filter '*KEY*,*SECRET*'
+```
+Output:
+```
+API_KEY=sk-1234567890abcdef
+SECRET_TOKEN=secret-xyz-789
+DATABASE_KEY=db-key-123
+```
+
+With masking:
+```bash
+ee --filter '*KEY*,*SECRET*' --mask
+```
+Output:
+```
+API_KEY=***MASKED***
+SECRET_TOKEN=***MASKED***
+DATABASE_KEY=***MASKED***
+```
+
+## Practical Examples
+
+### Development Workflow
+
+```bash
+# Check Node.js environment variables
+ee --filter 'NODE*'
+
+# Check all application-specific variables
+ee --filter 'APP_*,REACT_*,NEXT_*'
+
+# Show database configuration
+ee --filter 'DB*,DATABASE*'
+
+# Show all URLs
+ee --filter '*_URL'
+```
+
+### Debugging
+
+```bash
+# Show all environment variables as JSON for debugging
+ee --format json
+
+# Check specific service configuration
+ee --filter 'SERVICE_*' --format json
+
+# Export current environment to .env file
+ee --format dotenv > current.env
+
+# Compare environments (show what's different)
+ee --filter '!PATH,!HOME,!USER,!SHELL'
+```
+
+### Security Auditing
+
+```bash
+# Find all potential secrets (masked)
+ee --filter '*KEY*,*SECRET*,*TOKEN*,*PASSWORD*' --mask
+
+# List all API-related variables (masked)
+ee --filter 'API_*,*_API_*' --mask
+
+# Check authentication configuration (masked)
+ee --filter '*AUTH*,*CREDENTIAL*' --mask
+```
+
+### Configuration Export
+
+```bash
+# Export application config as .env
+ee --filter 'APP_*' --format dotenv > .env.app
+
+# Export database config
+ee --filter 'DB_*,DATABASE_*' --format dotenv > .env.database
+
+# Export all config as JSON
+ee --format json > environment.json
+
+# Export specific services
+ee --filter 'REDIS_*,MONGO_*,POSTGRES_*' --format dotenv > .env.services
+```
+
+### Integration with Other Tools
+
+```bash
+# Pipe to jq for JSON processing
+ee --format json | jq '.NODE_ENV'
+
+# Grep for specific patterns
+ee | grep -i debug
+
+# Count environment variables
+ee | wc -l
+
+# Search for specific values
+ee | grep -i production
+
+# Export and commit (non-sensitive vars only)
+ee --filter 'APP_*,!*KEY*,!*SECRET*' --format dotenv > .env.template
+git add .env.template
+```
+
+## Comparison with Project Apply
+
+The root `ee` command shows your **current shell environment**, while `ee apply` shows **project-configured environments**.
+
+### Root Command (Current Shell)
+
+```bash
+# Shows what's currently in your shell
+ee
+ee --filter 'NODE*'
+```
+
+Shows environment variables that are currently set in your terminal session.
+
+### Apply Command (Project Config)
+
+```bash
+# Shows what WOULD be set from project configuration
+ee apply development --dry-run
+```
+
+Shows environment variables defined in your `.ee` project configuration.
+
+### Use Cases
+
+**Use `ee` (root command) when**:
+- Debugging current environment
+- Inspecting what's actually set
+- Finding what variables exist
+- Exporting current state
+- Auditing environment variables
+
+**Use `ee apply` when**:
+- Loading project configuration
+- Running applications with specific environments
+- Validating project setup
+- Switching between environments
+
+## Advanced Filtering Examples
+
+### Development vs Production
+
+```bash
+# Show development-specific variables
+ee --filter 'DEV_*,DEBUG,LOCAL_*'
+
+# Show production-specific variables
+ee --filter 'PROD_*,!DEBUG'
+```
+
+### Service Discovery
+
+```bash
+# Show all service endpoints
+ee --filter '*_URL,*_ENDPOINT,*_HOST'
+
+# Show all service ports
+ee --filter '*_PORT'
+
+# Show all service credentials (masked)
+ee --filter '*_KEY,*_SECRET,*_TOKEN' --mask
+```
+
+### Feature Flags
+
+```bash
+# Show all feature flags
+ee --filter 'FEATURE_*,FLAG_*,ENABLE_*'
+
+# Show enabled features only
+ee | grep -E '(FEATURE_|FLAG_|ENABLE_).*=true'
+```
+
+### Configuration Layers
+
+```bash
+# Show base configuration
+ee --filter 'APP_NAME,APP_VERSION,LOG_*'
+
+# Show environment-specific config
+ee --filter 'NODE_ENV,ENVIRONMENT,ENV,DEPLOY_ENV'
+
+# Show integration points
+ee --filter '*_API_*,*_SDK_*,*_CLIENT_*'
+```
+
+## Output Redirection
+
+### Save to Files
+
+```bash
+# Save all variables
+ee > all-env.txt
+
+# Save filtered variables
+ee --filter 'APP_*' > app-env.txt
+
+# Save as .env file
+ee --format dotenv > .env.current
+
+# Save as JSON
+ee --format json > environment.json
+
+# Append to existing file
+ee --filter 'NEW_*' >> existing.env
+```
+
+### Pipe to Other Commands
+
+```bash
+# Process with jq
+ee --format json | jq '.PATH'
+
+# Filter with grep
+ee | grep -i database
+
+# Count variables
+ee --filter 'NODE*' | wc -l
+
+# Sort alphabetically
+ee | sort
+
+# Search and highlight
+ee | grep --color -i secret
+```
+
+## Shell Integration
+
+### Export Current Environment
+
+```bash
+# Export for bash/zsh sourcing
+ee --format env > env.sh
+source env.sh
+
+# Export specific variables
+ee --filter 'APP_*,DB_*' --format env > app-env.sh
+source app-env.sh
+```
+
+### Compare Environments
+
+```bash
+# Save current environment
+ee > current.env
+
+# Switch environments
+ee apply production --dry-run --format env > production.env
+
+# Compare
+diff current.env production.env
+```
+
+### Backup Environment
+
+```bash
+# Backup current environment
+ee --format dotenv > "env-backup-$(date +%Y%m%d).env"
+
+# Restore (source the backup)
+source env-backup-20240115.env
+```
+
+## Best Practices
+
+### Filtering
+
+1. **Be specific**: Use precise patterns to avoid matching unintended variables
+   ```bash
+   # Good: Specific pattern
+   ee --filter 'DATABASE_URL'
+
+   # Less good: Broad pattern that might match too much
+   ee --filter '*URL*'
+   ```
+
+2. **Combine patterns**: Use multiple patterns for related variables
+   ```bash
+   ee --filter 'DB_*,DATABASE_*,POSTGRES_*'
+   ```
+
+3. **Use exclusions**: Remove noise from output
+   ```bash
+   ee --filter '*,!_,!LS_COLORS,!LESSOPEN'
+   ```
+
+### Security
+
+1. **Always mask secrets** when sharing output
+   ```bash
+   ee --mask > shared-env.txt
+   ```
+
+2. **Filter before export** to avoid leaking sensitive data
+   ```bash
+   ee --filter 'APP_*,!*SECRET*,!*KEY*' > safe-config.env
+   ```
+
+3. **Review before committing**
+   ```bash
+   ee --filter 'APP_*' --mask > .env.template
+   git diff .env.template  # Review before committing
+   ```
+
+### Debugging
+
+1. **Start broad, then narrow**
+   ```bash
+   # 1. See everything
+   ee
+
+   # 2. Filter to area of interest
+   ee --filter 'NODE*'
+
+   # 3. Get specific
+   ee --filter 'NODE_ENV,NODE_OPTIONS'
+   ```
+
+2. **Use JSON for structured inspection**
+   ```bash
+   ee --format json | jq '.'
+   ```
+
+3. **Compare with project config**
+   ```bash
+   # Current environment
+   ee --filter 'APP_*' > current.txt
+
+   # Project config
+   ee apply development --dry-run --format env | grep 'APP_' > project.txt
+
+   # Compare
+   diff current.txt project.txt
+   ```
+
+## Common Use Cases
+
+### CI/CD Pipelines
+
+```bash
+# Export CI/CD variables
+ee --filter 'CI_*,GITHUB_*,GITLAB_*' --format dotenv
+
+# Validate required variables exist
+if ee --filter 'DEPLOY_KEY' | grep -q DEPLOY_KEY; then
+  echo "Deploy key found"
+else
+  echo "Deploy key missing!"
+  exit 1
+fi
+```
+
+### Docker Integration
+
+```bash
+# Generate .env file for Docker
+ee --filter 'APP_*,DB_*' --format dotenv > .env
+
+# Create docker-compose environment
+ee --filter 'SERVICE_*' --format dotenv > docker.env
+docker-compose --env-file docker.env up
+```
+
+### Team Collaboration
+
+```bash
+# Share non-sensitive config
+ee --filter 'APP_*,!*KEY*,!*SECRET*' --mask > team-config.env
+
+# Document required variables
+ee --filter 'APP_*' --format dotenv | sed 's/=.*/=/' > .env.template
+```
+
+### Environment Migration
+
+```bash
+# Export from old system
+ee --format dotenv > old-env.backup
+
+# Import to new system
+cat old-env.backup | while IFS='=' read -r key value; do
+  export "$key=$value"
+done
+
+# Verify
+ee --format dotenv
+```
+
+## Troubleshooting
+
+### No Output
+
+```bash
+# Check if any variables match filter
+ee --filter 'PATTERN*' | wc -l
+
+# Try broader pattern
+ee --filter '*PATTERN*'
+
+# Remove filter to see all
+ee
+```
+
+### Unexpected Results
+
+```bash
+# Check exact pattern matching
+ee --filter 'NODE_ENV'  # Exact match
+ee --filter 'NODE*'     # Wildcard match
+
+# Test exclusion logic
+ee --filter '!CLAUDE*'  # Everything except CLAUDE*
+ee --filter 'NODE*,!NODE_OPTIONS'  # NODE* except NODE_OPTIONS
+```
+
+### Special Characters
+
+```bash
+# Escape special characters in bash
+ee --filter 'VAR\[TEST\]'
+
+# Use single quotes to prevent shell expansion
+ee --filter 'PATH*'
+
+# Use double quotes for variable substitution
+ee --filter "$FILTER_PATTERN"
+```
+
+## Next Steps
+
+- Learn about the [Apply Command](/cli/apply) for loading project environments
+- Explore [Project Configuration](/cli/project-configuration) for managing projects
+- Understand [Config Sheets](/cli/config-sheets) for storing values
+- Read about [Schemas](/cli/schemas) for defining structure

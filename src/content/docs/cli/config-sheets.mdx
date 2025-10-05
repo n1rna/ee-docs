@@ -1,0 +1,800 @@
+---
+title: Config Sheets
+description: Manage configuration values with config sheets
+---
+
+Config sheets are containers for environment variable values. They store actual configuration data that conforms to schema definitions, making them the "values" to schemas' "structure."
+
+## What are Config Sheets?
+
+Config sheets hold the actual values for environment variables:
+- **Values**: Key-value pairs for configuration
+- **Schema validation**: Values must conform to a schema
+- **Local and remote**: Can be stored locally or synced remotely
+- **Reusable**: Can be shared across environments and projects
+
+Think of config sheets as:
+- **Schemas** = The structure (what variables should exist)
+- **Config Sheets** = The values (what those variables are set to)
+
+## Config Sheet Structure
+
+### Basic Config Sheet
+
+```json
+{
+  "name": "dev-config",
+  "description": "Development environment configuration",
+  "schema": {
+    "ref": "#/schemas/web-service"
+  },
+  "values": {
+    "PORT": "3000",
+    "NODE_ENV": "development",
+    "DEBUG": "true",
+    "DATABASE_URL": "postgres://localhost:5432/myapp_dev"
+  }
+}
+```
+
+### Fields
+
+- **`name`**: Unique identifier for the sheet
+- **`description`**: Human-readable description
+- **`schema`**: Reference to the schema for validation
+- **`values`**: Key-value pairs of configuration
+
+## Local vs Remote Config Sheets
+
+Config sheets can be managed locally or synchronized with a remote server.
+
+### Local Config Sheets
+
+Stored in `~/.ee/sheets/` on your machine.
+
+**Advantages**:
+- Work offline
+- Fast access
+- Personal control
+
+**Use for**:
+- Personal development configurations
+- Team-shared secrets (gitignored but shared manually)
+- Experimental values
+
+### Remote Config Sheets
+
+Stored on a remote ee server and synchronized via push/pull.
+
+**Advantages**:
+- Team collaboration
+- Centralized secret management
+- Version control
+- Access control
+
+**Use for**:
+- Production secrets
+- Shared team configurations
+- Multi-environment deployments
+
+## Creating Config Sheets
+
+### CLI Mode
+
+Create a config sheet with CLI values:
+
+```bash
+# Create with schema and values
+ee sheet create dev-config \
+  --schema web-service \
+  --value DATABASE_URL=postgres://localhost:5432/myapp_dev \
+  --value PORT=3000 \
+  --value DEBUG=true
+
+# With description
+ee sheet create prod-config \
+  --schema web-service \
+  --description "Production configuration" \
+  --value DATABASE_URL=postgres://prod-db:5432/myapp \
+  --value PORT=8080 \
+  --value DEBUG=false
+```
+
+### Interactive Mode
+
+Create interactively with schema guidance:
+
+```bash
+# Interactive with schema (prompts for each schema variable)
+ee sheet create dev-config --schema web-service --interactive
+
+# Free-form interactive (no schema)
+ee sheet create custom-config --interactive
+```
+
+**Schema-guided interactive** prompts for each variable defined in the schema.
+**Free-form interactive** lets you enter any key-value pairs.
+
+### Import from File
+
+Create from YAML, JSON, or .env file:
+
+```bash
+# From .env file
+ee sheet create dev-config --import .env.development
+
+# From YAML
+ee sheet create dev-config --import config.yaml
+
+# From JSON
+ee sheet create dev-config --import config.json
+```
+
+**Example .env file**:
+```bash
+PORT=3000
+DATABASE_URL=postgres://localhost:5432/myapp_dev
+DEBUG=true
+NODE_ENV=development
+```
+
+**Example YAML**:
+```yaml
+PORT: 3000
+DATABASE_URL: postgres://localhost:5432/myapp_dev
+DEBUG: true
+NODE_ENV: development
+```
+
+**Example JSON**:
+```json
+{
+  "PORT": "3000",
+  "DATABASE_URL": "postgres://localhost:5432/myapp_dev",
+  "DEBUG": "true",
+  "NODE_ENV": "development"
+}
+```
+
+### Import + Override
+
+Combine file import with CLI values (CLI values take precedence):
+
+```bash
+ee sheet create dev-config \
+  --import .env.development \
+  --value DEBUG=false \
+  --value LOG_LEVEL=trace
+```
+
+## Managing Config Sheets
+
+### List Config Sheets
+
+```bash
+# List all config sheets
+ee sheet list
+
+# List only standalone sheets (not tied to projects)
+ee sheet list --standalone
+
+# List with JSON output
+ee sheet list --format json
+```
+
+Output:
+```
+NAME            SCHEMA          VALUES  CREATED
+dev-config      web-service     8       2024-01-15
+prod-secrets    web-service     12      2024-01-16
+shared-config   base-service    5       2024-01-17
+```
+
+### Show Config Sheet
+
+```bash
+# Show config sheet in table format
+ee sheet show dev-config
+
+# Show as JSON
+ee sheet show dev-config --format json
+```
+
+### Edit Config Sheet
+
+```bash
+# Edit config sheet in your default editor ($EDITOR)
+ee sheet edit dev-config
+```
+
+Opens the config sheet in JSON format. Changes are validated against the schema when saved.
+
+### Delete Config Sheet
+
+```bash
+# Delete a config sheet
+ee sheet delete dev-config
+
+# Delete quietly (no output)
+ee sheet delete dev-config --quiet
+```
+
+## Updating Values
+
+### Set Individual Values
+
+```bash
+# Set a single value
+ee sheet set dev-config PORT 4000
+
+# Set multiple values
+ee sheet set dev-config DATABASE_URL postgres://newhost:5432/db
+ee sheet set dev-config DEBUG false
+```
+
+### Unset Values
+
+```bash
+# Remove a value
+ee sheet unset dev-config DEBUG
+
+# Remove multiple values
+ee sheet unset dev-config LOG_LEVEL
+ee sheet unset dev-config FEATURE_FLAG
+```
+
+## Exporting Config Sheets
+
+Export config sheet values in different formats.
+
+### Export as Environment Variables
+
+```bash
+# Export for shell (export KEY=VALUE)
+ee sheet export dev-config --format env
+```
+
+Output:
+```bash
+export PORT=3000
+export DATABASE_URL=postgres://localhost:5432/myapp_dev
+export DEBUG=true
+export NODE_ENV=development
+```
+
+### Export as .env File
+
+```bash
+# Export as dotenv format
+ee sheet export dev-config --format dotenv
+```
+
+Output:
+```
+PORT=3000
+DATABASE_URL=postgres://localhost:5432/myapp_dev
+DEBUG=true
+NODE_ENV=development
+```
+
+### Export as JSON
+
+```bash
+# Export as JSON
+ee sheet export dev-config --format json
+```
+
+Output:
+```json
+{
+  "PORT": "3000",
+  "DATABASE_URL": "postgres://localhost:5432/myapp_dev",
+  "DEBUG": "true",
+  "NODE_ENV": "development"
+}
+```
+
+### Save to File
+
+```bash
+# Save to .env file
+ee sheet export dev-config --format dotenv > .env.development
+
+# Save as JSON
+ee sheet export dev-config --format json > config.json
+
+# Save for shell sourcing
+ee sheet export dev-config --format env > env.sh
+```
+
+## Using Config Sheets in Projects
+
+Config sheets are referenced in `.ee` project configurations.
+
+### Reference by Name
+
+```json
+{
+  "environments": {
+    "development": {
+      "sheets": ["dev-config"]
+    }
+  }
+}
+```
+
+### Reference with local:// Prefix
+
+```json
+{
+  "environments": {
+    "production": {
+      "sheets": ["local://prod-config", "local://prod-secrets"]
+    }
+  }
+}
+```
+
+### Reference with remote:// Prefix
+
+```json
+{
+  "environments": {
+    "production": {
+      "sheets": ["remote://configs/prod-base", "remote://secrets/prod"]
+    }
+  }
+}
+```
+
+## Sheet Stacking in Environments
+
+Multiple config sheets can be stacked (merged) in an environment.
+
+### Stacking Order
+
+Sheets are merged **left to right**, with later values overriding earlier ones:
+
+```json
+{
+  "environments": {
+    "production": {
+      "sheets": [
+        "base-config",        // 1. Base values loaded first
+        "prod-config",        // 2. Production values override base
+        "prod-secrets"        // 3. Secrets override everything
+      ]
+    }
+  }
+}
+```
+
+**Example**:
+```
+base-config:     PORT=3000, DEBUG=true, LOG_LEVEL=info
+prod-config:     DEBUG=false, LOG_LEVEL=warn
+prod-secrets:    API_KEY=secret123
+
+Final result:    PORT=3000, DEBUG=false, LOG_LEVEL=warn, API_KEY=secret123
+```
+
+### Mixed Sources
+
+Combine config sheets with .env files:
+
+```json
+{
+  "environments": {
+    "staging": {
+      "sheets": [
+        ".env.base",               // .env file
+        "local://shared-config",   // Local config sheet
+        "remote://staging-secrets" // Remote config sheet
+      ]
+    }
+  }
+}
+```
+
+### Inline Overrides
+
+Add inline values at the end to override everything:
+
+```json
+{
+  "environments": {
+    "development": {
+      "sheets": [
+        "dev-config",
+        {
+          "DEBUG": "true",
+          "LOG_LEVEL": "trace"
+        }
+      ]
+    }
+  }
+}
+```
+
+## Remote Synchronization
+
+Sync config sheets between local storage and remote server.
+
+### Push Local Sheets
+
+```bash
+# Push all local config sheets to remote
+ee push --sheets
+
+# Dry run to see what would be pushed
+ee push --sheets --dry-run
+```
+
+### Pull Remote Sheets
+
+```bash
+# Pull all remote config sheets to local
+ee pull --sheets
+
+# Dry run to see what would be pulled
+ee pull --sheets --dry-run
+```
+
+### Sync Workflow
+
+```bash
+# 1. Pull latest config sheets from remote
+ee pull --sheets
+
+# 2. Create or modify sheets locally
+ee sheet create my-new-config --schema web-service --value PORT=3000
+
+# 3. Push changes back to remote
+ee push --sheets
+
+# 4. Team members pull to get updates
+ee pull --sheets
+```
+
+## Common Patterns
+
+### Base + Environment Pattern
+
+Create a base config and environment-specific configs:
+
+```bash
+# Base configuration (shared values)
+ee sheet create base-config \
+  --schema web-service \
+  --value APP_NAME="My App" \
+  --value LOG_FORMAT=json
+
+# Development config
+ee sheet create dev-config \
+  --schema web-service \
+  --value DATABASE_URL=postgres://localhost:5432/myapp_dev \
+  --value DEBUG=true
+
+# Production config
+ee sheet create prod-config \
+  --schema web-service \
+  --value DATABASE_URL=postgres://prod-db:5432/myapp \
+  --value DEBUG=false
+```
+
+**Project config**:
+```json
+{
+  "environments": {
+    "development": {
+      "sheets": ["base-config", "dev-config"]
+    },
+    "production": {
+      "sheets": ["base-config", "prod-config"]
+    }
+  }
+}
+```
+
+### Shared + Personal Pattern
+
+Team shared config + personal overrides:
+
+```bash
+# Team shared config (in version control or remote)
+ee sheet create shared-dev-config \
+  --schema web-service \
+  --value DATABASE_URL=postgres://shared-db:5432/myapp_dev \
+  --value API_BASE_URL=https://api.dev.example.com
+
+# Personal overrides (local only, gitignored)
+# Can be a .env.local file instead of a config sheet
+```
+
+**Project config**:
+```json
+{
+  "environments": {
+    "development": {
+      "sheets": [
+        "local://shared-dev-config",
+        ".env.local"  // Personal overrides (gitignored)
+      ]
+    }
+  }
+}
+```
+
+### Layered Secrets Pattern
+
+Separate public config from secrets:
+
+```bash
+# Public configuration (safe to commit)
+ee sheet create public-prod-config \
+  --schema web-service \
+  --value PORT=8080 \
+  --value NODE_ENV=production
+
+# Private secrets (remote only, access controlled)
+# Created on remote server or pushed from secure location
+ee sheet create prod-secrets \
+  --schema web-service \
+  --value DATABASE_PASSWORD=secretpass \
+  --value API_KEY=secret123
+```
+
+**Project config**:
+```json
+{
+  "environments": {
+    "production": {
+      "sheets": [
+        "local://public-prod-config",
+        "remote://secrets/production"
+      ]
+    }
+  }
+}
+```
+
+## Schema Validation
+
+Config sheets are validated against their schema.
+
+### Validation Rules
+
+1. **Required variables** must be present
+2. **Types must match** schema definitions
+3. **Patterns must match** if specified
+4. **Extra variables** are allowed (schema doesn't enforce exhaustiveness)
+
+### Validation Examples
+
+**Schema**:
+```json
+{
+  "variables": [
+    {
+      "name": "PORT",
+      "type": "number",
+      "required": true
+    },
+    {
+      "name": "DEBUG",
+      "type": "boolean",
+      "required": false
+    }
+  ]
+}
+```
+
+**Valid config sheet**:
+```bash
+ee sheet create config --schema web-service \
+  --value PORT=3000 \
+  --value DEBUG=true \
+  --value EXTRA_VAR=allowed  # Extra variables are OK
+```
+
+**Invalid config sheet** (PORT not a number):
+```bash
+ee sheet create config --schema web-service \
+  --value PORT=abc \
+  --value DEBUG=true
+# Error: PORT must be a number
+```
+
+**Invalid config sheet** (missing required PORT):
+```bash
+ee sheet create config --schema web-service \
+  --value DEBUG=true
+# Error: PORT is required
+```
+
+### Manual Validation
+
+```bash
+# Validation happens automatically on create/update
+ee sheet create my-config --schema web-service --value PORT=3000
+
+# Edit validation happens on save
+ee sheet edit my-config
+```
+
+## Best Practices
+
+### Organization
+
+1. **Naming conventions**:
+   - Use kebab-case: `dev-config`, `prod-secrets`
+   - Include environment: `staging-config`, `production-config`
+   - Indicate purpose: `shared-base`, `personal-overrides`
+
+2. **Separation of concerns**:
+   - Public config (safe to commit/share)
+   - Private secrets (remote only or gitignored)
+   - Base config (shared across environments)
+   - Environment-specific config (overrides)
+
+3. **Schema association**:
+   - Always associate config sheets with a schema
+   - Use the same schema across environments for consistency
+   - Validate before deployment
+
+### Security
+
+1. **Never commit secrets**:
+   - Use remote config sheets for production secrets
+   - Use `.env.local` for personal secrets (gitignored)
+   - Use local config sheets for team secrets (shared out-of-band)
+
+2. **Access control**:
+   - Use remote server for access-controlled secrets
+   - Separate production sheets from development
+   - Audit config sheet access
+
+3. **Secret rotation**:
+   - Update config sheets when rotating secrets
+   - Push changes to remote for team sync
+   - Use versioning/timestamps to track changes
+
+### Workflow
+
+1. **Development**:
+   ```bash
+   # Create dev config
+   ee sheet create dev-config --schema web-service --interactive
+
+   # Use in project
+   ee apply development -- npm start
+   ```
+
+2. **Staging**:
+   ```bash
+   # Create from dev, modify for staging
+   ee sheet export dev-config --format dotenv > staging.env
+   # Edit staging.env
+   ee sheet create staging-config --import staging.env
+   ```
+
+3. **Production**:
+   ```bash
+   # Create prod config on remote (controlled access)
+   ee sheet create prod-config --schema web-service
+   ee sheet set prod-config DATABASE_URL postgres://prod:5432/db
+   ee sheet set prod-config API_KEY secret123
+
+   # Push to remote
+   ee push --sheets
+   ```
+
+## Example Config Sheets
+
+### Development Config Sheet
+
+```bash
+ee sheet create dev-config \
+  --schema web-service \
+  --description "Local development configuration" \
+  --value PORT=3000 \
+  --value HOST=localhost \
+  --value NODE_ENV=development \
+  --value DEBUG=true \
+  --value LOG_LEVEL=debug \
+  --value DATABASE_URL=postgres://localhost:5432/myapp_dev \
+  --value REDIS_URL=redis://localhost:6379 \
+  --value API_KEY=dev-key-123
+```
+
+### Production Config Sheet
+
+```bash
+ee sheet create prod-config \
+  --schema web-service \
+  --description "Production configuration" \
+  --value PORT=8080 \
+  --value HOST=0.0.0.0 \
+  --value NODE_ENV=production \
+  --value DEBUG=false \
+  --value LOG_LEVEL=warn \
+  --value DATABASE_URL=postgres://prod-db.example.com:5432/myapp \
+  --value REDIS_URL=redis://prod-redis.example.com:6379 \
+  --value API_KEY=prod-key-456
+```
+
+### Shared Base Config
+
+```bash
+ee sheet create shared-base \
+  --schema base-service \
+  --description "Shared configuration across all environments" \
+  --value APP_NAME="My Application" \
+  --value APP_VERSION=1.0.0 \
+  --value LOG_FORMAT=json \
+  --value TIMEZONE=UTC \
+  --value METRICS_ENABLED=true \
+  --value TRACING_ENABLED=true
+```
+
+## Troubleshooting
+
+### Config Sheet Not Found
+
+```bash
+# List available config sheets
+ee sheet list
+
+# Pull from remote if configured
+ee pull --sheets
+
+# Create the config sheet
+ee sheet create my-config --schema my-schema
+```
+
+### Validation Errors
+
+```bash
+# Check schema requirements
+ee schema show my-schema
+
+# Common issues:
+# - Type mismatch (PORT=abc when type is number)
+# - Missing required variables
+# - Invalid URL/email format
+```
+
+### Remote Sync Errors
+
+```bash
+# Check remote URL in .ee file
+cat .ee | jq '.remote'
+
+# Test connectivity
+ee pull --sheets --dry-run
+
+# Check for conflicts (same name, different values)
+ee push --sheets --dry-run
+```
+
+### Sheet Stacking Issues
+
+```bash
+# Test environment resolution
+ee apply development --dry-run
+
+# Check which sheets are being merged
+cat .ee | jq '.environments.development.sheets'
+
+# Verify each sheet exists:
+# - For .env files: ls -la .env*
+# - For local sheets: ee sheet list
+# - For remote sheets: ee pull --sheets --dry-run
+```
+
+## Next Steps
+
+- Learn about [Schemas](/cli/schemas) for defining validation rules
+- Explore [Project Configuration](/cli/project-configuration) for using config sheets
+- Understand the [Apply Command](/cli/apply) for applying config sheets to environments
+- Read about [Remote Synchronization](/cli/remote-sync) for team collaboration

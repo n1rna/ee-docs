@@ -1,0 +1,715 @@
+---
+title: Schemas
+description: Define and manage environment variable structures with schemas
+---
+
+Schemas define the structure, validation rules, and documentation for your environment variables. They act as contracts that ensure consistency across environments and provide type safety for your configuration.
+
+## What are Schemas?
+
+A schema is a structured definition that describes:
+- **Variable names** and their purposes
+- **Data types** (string, number, boolean, etc.)
+- **Validation rules** (required, patterns, defaults)
+- **Documentation** (titles, descriptions)
+- **Inheritance** (extending other schemas)
+
+Schemas help teams:
+- **Enforce consistency** across environments
+- **Validate configuration** before deployment
+- **Document variables** for new team members
+- **Prevent errors** from misconfiguration
+
+## Schema Structure
+
+### Basic Schema
+
+```json
+{
+  "name": "web-service",
+  "description": "Schema for web service applications",
+  "variables": [
+    {
+      "name": "PORT",
+      "type": "number",
+      "title": "Server port",
+      "required": false,
+      "default": "3000"
+    },
+    {
+      "name": "NODE_ENV",
+      "type": "string",
+      "title": "Node environment",
+      "required": true,
+      "default": "development"
+    },
+    {
+      "name": "DEBUG",
+      "type": "boolean",
+      "title": "Debug mode",
+      "required": false,
+      "default": "false"
+    }
+  ]
+}
+```
+
+### Variable Properties
+
+Each variable in a schema can have:
+
+- **`name`** (required): Variable name (e.g., "DATABASE_URL")
+- **`type`** (required): Data type (string, number, boolean, url, email, etc.)
+- **`title`** (optional): Human-readable description
+- **`required`** (optional): Whether the variable must be set
+- **`default`** (optional): Default value if not specified
+- **`pattern`** (optional): Regex pattern for validation
+
+### Data Types
+
+Supported types:
+- `string`: Text values
+- `number`: Numeric values (integers or decimals)
+- `boolean`: True/false values
+- `url`: URL validation
+- `email`: Email address validation
+- `json`: JSON string validation
+
+## Local vs Remote Schemas
+
+Schemas can be managed locally or synchronized with a remote server.
+
+### Local Schemas
+
+Stored in `~/.ee/schemas/` on your machine.
+
+**Advantages**:
+- Work offline
+- Fast access
+- Full control
+
+**Use for**:
+- Personal projects
+- Development schemas
+- Experimental configurations
+
+### Remote Schemas
+
+Stored on a remote ee server and synchronized via push/pull.
+
+**Advantages**:
+- Team collaboration
+- Centralized management
+- Version control
+
+**Use for**:
+- Shared team schemas
+- Production configurations
+- Multi-project standards
+
+## Creating Schemas
+
+### Interactive Mode
+
+Create a schema interactively:
+
+```bash
+ee schema create web-service
+```
+
+This prompts you for:
+1. Schema description
+2. Variable definitions (name, type, title, required, default)
+3. Confirmation
+
+### CLI Mode
+
+Create a schema with flags:
+
+```bash
+ee schema create web-service \
+  --description "Schema for web services" \
+  --variable "DATABASE_URL:string:Database connection:true" \
+  --variable "PORT:number:Server port:false:8080" \
+  --variable "DEBUG:boolean:Debug mode:false:false"
+```
+
+Variable format: `name:type:title:required[:default]`
+
+### Import from File
+
+Create a schema from a YAML, JSON, or .env file:
+
+```bash
+# From YAML
+ee schema create web-service --import schema.yaml
+
+# From JSON
+ee schema create web-service --import schema.json
+
+# From .env file (infers structure)
+ee schema create web-service --import .env.example
+```
+
+**Example YAML**:
+```yaml
+description: Schema for web services
+variables:
+  - name: PORT
+    type: number
+    title: Server port
+    required: false
+    default: "3000"
+  - name: DATABASE_URL
+    type: url
+    title: Database connection string
+    required: true
+  - name: DEBUG
+    type: boolean
+    title: Enable debug mode
+    required: false
+    default: "false"
+```
+
+**Example JSON**:
+```json
+{
+  "description": "Schema for web services",
+  "variables": [
+    {
+      "name": "PORT",
+      "type": "number",
+      "title": "Server port",
+      "required": false,
+      "default": "3000"
+    },
+    {
+      "name": "DATABASE_URL",
+      "type": "url",
+      "title": "Database connection string",
+      "required": true
+    }
+  ]
+}
+```
+
+## Managing Schemas
+
+### List Schemas
+
+```bash
+# List all local schemas
+ee schema list
+
+# List with JSON output
+ee schema list --format json
+```
+
+Output:
+```
+NAME            VARIABLES  CREATED
+web-service     8          2024-01-15
+api-service     12         2024-01-16
+database-config 5          2024-01-17
+```
+
+### Show Schema Details
+
+```bash
+# Show schema in table format
+ee schema show web-service
+
+# Show as JSON
+ee schema show web-service --format json
+```
+
+### Edit Schema
+
+```bash
+# Edit schema in your default editor ($EDITOR)
+ee schema edit web-service
+```
+
+This opens the schema in JSON format for editing. Changes are validated when you save.
+
+### Delete Schema
+
+```bash
+# Delete a schema
+ee schema delete web-service
+
+# Delete quietly (no output)
+ee schema delete web-service --quiet
+```
+
+## Schema Inheritance
+
+Schemas can extend other schemas to promote reuse and consistency.
+
+### Basic Inheritance
+
+```json
+{
+  "name": "api-service",
+  "description": "API service with base configuration",
+  "extends": ["base-service"],
+  "variables": [
+    {
+      "name": "API_KEY",
+      "type": "string",
+      "title": "API authentication key",
+      "required": true
+    }
+  ]
+}
+```
+
+The `api-service` schema inherits all variables from `base-service` and adds its own.
+
+### Multiple Inheritance
+
+```json
+{
+  "name": "full-stack-app",
+  "extends": ["web-service", "database-config", "auth-config"],
+  "variables": [
+    {
+      "name": "FRONTEND_URL",
+      "type": "url",
+      "title": "Frontend application URL",
+      "required": true
+    }
+  ]
+}
+```
+
+**Merge order**: Schemas are merged left to right, with later schemas overriding earlier ones.
+
+### Overriding Inherited Variables
+
+You can override variables from parent schemas:
+
+```json
+{
+  "name": "custom-web-service",
+  "extends": ["web-service"],
+  "variables": [
+    {
+      "name": "PORT",
+      "type": "number",
+      "title": "Custom server port",
+      "required": true,  // Override: now required
+      "default": "8080"  // Override: different default
+    }
+  ]
+}
+```
+
+## Schema References
+
+Schemas can be referenced in different ways:
+
+### Local Reference
+
+```json
+{
+  "schema": {
+    "ref": "local://web-service"
+  }
+}
+```
+
+References a schema named "web-service" from local storage.
+
+### Remote Reference
+
+```json
+{
+  "schema": {
+    "ref": "remote://schemas/web-service"
+  }
+}
+```
+
+References a schema from the remote server.
+
+### Schema ID Reference
+
+```json
+{
+  "schema": {
+    "ref": "#/schemas/550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+References a schema by its unique ID (UUID).
+
+## Remote Synchronization
+
+Sync schemas between local storage and remote server.
+
+### Push Local Schemas
+
+```bash
+# Push all local schemas to remote
+ee push --schemas
+
+# Dry run to see what would be pushed
+ee push --schemas --dry-run
+```
+
+### Pull Remote Schemas
+
+```bash
+# Pull all remote schemas to local
+ee pull --schemas
+
+# Dry run to see what would be pulled
+ee pull --schemas --dry-run
+```
+
+### Sync Workflow
+
+```bash
+# 1. Pull latest schemas from remote
+ee pull --schemas
+
+# 2. Create or modify schemas locally
+ee schema create my-new-schema --variable "VAR:string:Description:true"
+
+# 3. Push changes back to remote
+ee push --schemas
+
+# 4. Team members pull to get updates
+ee pull --schemas
+```
+
+## Schema Validation
+
+Schemas validate config sheets and .env files to ensure correctness.
+
+### Validation Rules
+
+1. **Required Variables**: Must be present
+2. **Type Checking**: Values must match declared type
+3. **Pattern Matching**: Values must match regex patterns
+4. **Default Values**: Applied when variable is missing
+
+### Validation Examples
+
+**Schema**:
+```json
+{
+  "variables": [
+    {
+      "name": "PORT",
+      "type": "number",
+      "required": true
+    },
+    {
+      "name": "DEBUG",
+      "type": "boolean",
+      "required": false,
+      "default": "false"
+    }
+  ]
+}
+```
+
+**Valid Config**:
+```bash
+PORT=3000
+DEBUG=true
+```
+
+**Invalid Config** (PORT is not a number):
+```bash
+PORT=abc
+DEBUG=true
+```
+
+**Valid Config** (DEBUG uses default):
+```bash
+PORT=3000
+```
+
+### Automatic Validation
+
+Validation happens automatically:
+
+```bash
+# When creating config sheets
+ee sheet create my-config --schema web-service --value PORT=3000
+
+# When applying environments
+ee apply development
+
+# Validation errors are shown immediately
+```
+
+## Common Schema Patterns
+
+### Web Service Schema
+
+```bash
+ee schema create web-service \
+  --description "Standard web service configuration" \
+  --variable "PORT:number:Server port:false:3000" \
+  --variable "HOST:string:Server host:false:0.0.0.0" \
+  --variable "NODE_ENV:string:Node environment:true:development" \
+  --variable "LOG_LEVEL:string:Logging level:false:info" \
+  --variable "DEBUG:boolean:Debug mode:false:false"
+```
+
+### Database Schema
+
+```bash
+ee schema create database-config \
+  --description "Database connection configuration" \
+  --variable "DATABASE_URL:url:Database connection string:true" \
+  --variable "DB_POOL_MIN:number:Minimum pool size:false:2" \
+  --variable "DB_POOL_MAX:number:Maximum pool size:false:10" \
+  --variable "DB_SSL:boolean:Enable SSL:false:true"
+```
+
+### Authentication Schema
+
+```bash
+ee schema create auth-config \
+  --description "Authentication and authorization settings" \
+  --variable "JWT_SECRET:string:JWT signing secret:true" \
+  --variable "JWT_EXPIRY:string:JWT token expiry:false:24h" \
+  --variable "OAUTH_CLIENT_ID:string:OAuth client ID:true" \
+  --variable "OAUTH_CLIENT_SECRET:string:OAuth client secret:true" \
+  --variable "OAUTH_CALLBACK_URL:url:OAuth callback URL:true"
+```
+
+### Base Service Schema
+
+```bash
+ee schema create base-service \
+  --description "Base configuration for all services" \
+  --variable "SERVICE_NAME:string:Service name:true" \
+  --variable "SERVICE_VERSION:string:Service version:false:1.0.0" \
+  --variable "ENVIRONMENT:string:Deployment environment:true" \
+  --variable "LOG_FORMAT:string:Log output format:false:json" \
+  --variable "METRICS_ENABLED:boolean:Enable metrics:false:true"
+```
+
+## Best Practices
+
+### Schema Design
+
+1. **Start with base schemas**: Create foundational schemas (base-service, database-config)
+2. **Use inheritance**: Extend base schemas rather than duplicating variables
+3. **Be specific**: Use descriptive names and titles
+4. **Set sensible defaults**: Provide defaults for optional variables
+5. **Document everything**: Add clear titles and descriptions
+
+### Naming Conventions
+
+- **Schemas**: Use kebab-case (`web-service`, `database-config`)
+- **Variables**: Use UPPER_SNAKE_CASE (`DATABASE_URL`, `API_KEY`)
+- **Titles**: Use clear, concise descriptions
+- **Types**: Choose the most specific type (url instead of string for URLs)
+
+### Type Selection
+
+Choose the right type:
+- `string`: General text, no validation needed
+- `number`: Ports, limits, numeric IDs
+- `boolean`: Flags, toggles (true/false)
+- `url`: Connection strings, API endpoints
+- `email`: Email addresses
+- `json`: Complex nested structures
+
+### Required vs Optional
+
+Make variables **required** when:
+- Application won't work without them
+- No sensible default exists
+- Critical for security (API keys, secrets)
+
+Make variables **optional** when:
+- Sensible defaults exist
+- Feature is optional
+- Development can work without them
+
+### Schema Versioning
+
+Track schema changes:
+
+```bash
+# v1: Initial schema
+ee schema create api-v1 \
+  --variable "API_KEY:string:API key:true"
+
+# v2: Added new variable
+ee schema create api-v2 \
+  --variable "API_KEY:string:API key:true" \
+  --variable "API_VERSION:string:API version:false:v1"
+
+# v3: Breaking change
+ee schema create api-v3 \
+  --variable "API_TOKEN:string:API token:true" \  # Renamed from API_KEY
+  --variable "API_VERSION:string:API version:false:v2"
+```
+
+## Example Schemas
+
+### Microservice Schema
+
+```yaml
+description: Complete microservice configuration
+extends:
+  - base-service
+  - database-config
+  - auth-config
+variables:
+  - name: SERVICE_PORT
+    type: number
+    title: Service HTTP port
+    required: true
+    default: "3000"
+  - name: GRPC_PORT
+    type: number
+    title: gRPC service port
+    required: false
+    default: "50051"
+  - name: REDIS_URL
+    type: url
+    title: Redis connection string
+    required: true
+  - name: MESSAGE_QUEUE_URL
+    type: url
+    title: Message queue URL
+    required: true
+  - name: RATE_LIMIT
+    type: number
+    title: API rate limit (requests/minute)
+    required: false
+    default: "100"
+```
+
+### Frontend Application Schema
+
+```yaml
+description: Frontend application configuration
+variables:
+  - name: API_BASE_URL
+    type: url
+    title: Backend API base URL
+    required: true
+  - name: WS_URL
+    type: url
+    title: WebSocket server URL
+    required: false
+  - name: ENABLE_ANALYTICS
+    type: boolean
+    title: Enable analytics tracking
+    required: false
+    default: "true"
+  - name: ANALYTICS_ID
+    type: string
+    title: Analytics tracking ID
+    required: false
+  - name: SENTRY_DSN
+    type: url
+    title: Sentry error tracking DSN
+    required: false
+  - name: FEATURE_FLAG_NEW_UI
+    type: boolean
+    title: Enable new UI features
+    required: false
+    default: "false"
+```
+
+### CI/CD Pipeline Schema
+
+```yaml
+description: CI/CD pipeline configuration
+variables:
+  - name: CI_REGISTRY
+    type: url
+    title: Container registry URL
+    required: true
+  - name: CI_REGISTRY_USER
+    type: string
+    title: Registry username
+    required: true
+  - name: CI_REGISTRY_PASSWORD
+    type: string
+    title: Registry password
+    required: true
+  - name: DEPLOY_ENV
+    type: string
+    title: Deployment environment
+    required: true
+  - name: SLACK_WEBHOOK
+    type: url
+    title: Slack notification webhook
+    required: false
+  - name: AUTO_DEPLOY
+    type: boolean
+    title: Enable automatic deployment
+    required: false
+    default: "false"
+```
+
+## Troubleshooting
+
+### Schema Not Found
+
+```bash
+# List available schemas
+ee schema list
+
+# Pull from remote if configured
+ee pull --schemas
+
+# Create the schema
+ee schema create my-schema
+```
+
+### Validation Errors
+
+```bash
+# Check schema details
+ee schema show my-schema
+
+# Common issues:
+# - Type mismatch (string vs number)
+# - Missing required variables
+# - Invalid regex pattern
+```
+
+### Inheritance Issues
+
+```bash
+# Check parent schemas exist
+ee schema list
+
+# Show resolved schema (with inheritance)
+ee schema show my-schema --format json
+```
+
+### Remote Sync Errors
+
+```bash
+# Check remote URL in .ee file
+cat .ee | jq '.remote'
+
+# Test connectivity
+ee pull --schemas --dry-run
+
+# Check for conflicts
+ee push --schemas --dry-run
+```
+
+## Next Steps
+
+- Learn about [Config Sheets](/cli/config-sheets) for managing values
+- Explore [Project Configuration](/cli/project-configuration) for using schemas
+- Understand the [Apply Command](/cli/apply) for applying validated environments
+- Read about [Remote Synchronization](/cli/remote-sync) for team collaboration

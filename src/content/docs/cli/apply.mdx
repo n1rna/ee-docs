@@ -1,0 +1,758 @@
+---
+title: Apply Command
+description: Apply environment variables from project configurations, config sheets, and .env files
+---
+
+The `ee apply` command is the primary way to load and use environment configurations. It supports multiple sources: project environments, standalone config sheets, and .env files, making it incredibly flexible for different workflows.
+
+## Overview
+
+The apply command:
+- **Loads environment variables** from various sources
+- **Validates against schemas** (when applicable)
+- **Merges multiple sheets** in the correct order
+- **Starts a new shell** or **runs specific commands** with the environment
+- **Supports dry-run mode** to preview what will be applied
+
+## Basic Usage
+
+### Apply Project Environment
+
+When you're in a project directory (with a `.ee` file):
+
+```bash
+# Apply development environment and start new shell
+ee apply development
+
+# Apply production environment and start new shell
+ee apply production
+```
+
+This:
+1. Reads the `.ee` project configuration
+2. Finds the environment definition
+3. Merges all config sheets/files for that environment
+4. Validates against the schema
+5. Starts a new shell with the environment loaded
+
+### Run Command with Environment
+
+```bash
+# Run a specific command with the environment
+ee apply development -- npm start
+
+# Run build with production environment
+ee apply production -- npm run build
+
+# Run tests with test environment
+ee apply test -- npm test
+```
+
+The `--` separator marks the beginning of the command to run.
+
+### Apply Standalone Config Sheet
+
+```bash
+# Apply a standalone config sheet (not tied to a project)
+ee apply my-config --standalone
+
+# Run command with standalone sheet
+ee apply my-config --standalone -- node server.js
+```
+
+### Apply .env File
+
+```bash
+# Apply .env file from current directory
+ee apply .env
+
+# Apply .env file with absolute path
+ee apply /path/to/.env
+
+# Apply .env file and run command
+ee apply .env.production -- npm start
+```
+
+## How Project Environments Work
+
+### Project Discovery
+
+The apply command searches for a `.ee` file to determine project context:
+
+1. **Current directory**: Checks for `.ee` in current working directory
+2. **Parent directories**: Walks up the tree looking for `.ee`
+3. **Stops at**: First `.ee` file found or filesystem root
+
+### Environment Resolution
+
+Once the project is found:
+
+1. **Load `.ee` file**: Parse project configuration
+2. **Find environment**: Get the environment definition (e.g., "development")
+3. **Resolve sheets**: Resolve all sheet references in order
+4. **Merge values**: Merge sheets left-to-right (later overrides earlier)
+5. **Validate**: Check against project schema
+6. **Apply**: Set environment variables
+
+### Sheet Stacking Example
+
+Given this `.ee` configuration:
+
+```json
+{
+  "project": "my-app",
+  "schema": {
+    "ref": "local://web-service"
+  },
+  "environments": {
+    "production": {
+      "sheets": [
+        ".env.base",                 // 1. Base config
+        "local://prod-config",       // 2. Production overrides
+        "remote://prod-secrets"      // 3. Secret values
+      ]
+    }
+  }
+}
+```
+
+When you run `ee apply production`:
+
+1. **Load .env.base**:
+   ```
+   PORT=3000
+   DEBUG=true
+   ```
+
+2. **Merge local://prod-config**:
+   ```
+   PORT=3000          (from .env.base)
+   DEBUG=false        (overridden)
+   NODE_ENV=production (new)
+   ```
+
+3. **Merge remote://prod-secrets**:
+   ```
+   PORT=3000              (from .env.base)
+   DEBUG=false            (from prod-config)
+   NODE_ENV=production    (from prod-config)
+   DATABASE_PASSWORD=secret (new)
+   API_KEY=key123         (new)
+   ```
+
+4. **Validate** against web-service schema
+
+5. **Apply** final environment
+
+## Command Modes
+
+### New Shell Mode
+
+Start a new shell with environment variables loaded:
+
+```bash
+ee apply development
+```
+
+**What happens**:
+1. Environment is loaded and validated
+2. A new shell is spawned (uses `$SHELL` or defaults to `/bin/bash`)
+3. All environment variables are available in the new shell
+4. Exit the shell to return to original environment
+
+**Shell indicator**:
+```
+Starting shell with environment variables applied
+Shell: /bin/bash
+Applied 15 environment variables
+```
+
+### Command Mode
+
+Run a specific command with the environment:
+
+```bash
+ee apply development -- npm start
+```
+
+**What happens**:
+1. Environment is loaded and validated
+2. The command is executed with the environment
+3. Command runs to completion
+4. You return to original shell
+
+**Example**:
+```bash
+# Start development server
+ee apply development -- npm run dev
+
+# Run database migrations
+ee apply production -- npm run migrate
+
+# Build with production config
+ee apply production -- npm run build
+
+# Run tests with test environment
+ee apply test -- npm test
+```
+
+## Dry Run Mode
+
+Preview what will be applied without actually applying it:
+
+```bash
+# Show what would be applied
+ee apply development --dry-run
+
+# Show in different formats
+ee apply development --dry-run --format env
+ee apply development --dry-run --format dotenv
+ee apply development --dry-run --format json
+```
+
+**Example output** (--format env):
+```bash
+Environment variables that would be applied:
+export PORT=3000
+export NODE_ENV=development
+export DEBUG=true
+export DATABASE_URL=postgres://localhost:5432/myapp_dev
+export REDIS_URL=redis://localhost:6379
+```
+
+**Example output** (--format json):
+```json
+{
+  "PORT": "3000",
+  "NODE_ENV": "development",
+  "DEBUG": "true",
+  "DATABASE_URL": "postgres://localhost:5432/myapp_dev",
+  "REDIS_URL": "redis://localhost:6379"
+}
+```
+
+**Use cases**:
+- Verify environment before deployment
+- Debug configuration issues
+- Generate configuration files
+- Document environment setup
+
+## Output Formats
+
+### Environment Format (export statements)
+
+```bash
+ee apply development --dry-run --format env
+```
+
+Output:
+```bash
+export PORT=3000
+export NODE_ENV=development
+export DEBUG=true
+```
+
+**Use for**: Shell sourcing, documentation
+
+### DotEnv Format (.env file)
+
+```bash
+ee apply development --dry-run --format dotenv
+```
+
+Output:
+```
+PORT=3000
+NODE_ENV=development
+DEBUG=true
+```
+
+**Use for**: .env files, Docker, containerization
+
+### JSON Format
+
+```bash
+ee apply development --dry-run --format json
+```
+
+Output:
+```json
+{
+  "PORT": "3000",
+  "NODE_ENV": "development",
+  "DEBUG": "true"
+}
+```
+
+**Use for**: API integration, tooling, processing
+
+## Multiple Sources
+
+The apply command intelligently detects the source type.
+
+### Auto-Detection
+
+```bash
+# Detects as project environment (no file extension)
+ee apply development
+
+# Detects as .env file (file extension and/or exists as file)
+ee apply .env
+
+# Detects as .env file (path-like)
+ee apply ./config/.env.production
+
+# Detects as standalone config sheet (with flag)
+ee apply my-config --standalone
+```
+
+### Priority Order
+
+1. **File path** (if argument looks like a path or file exists)
+2. **Standalone sheet** (if `--standalone` flag is set)
+3. **Project environment** (default, searches for `.ee` file)
+
+## Flags and Options
+
+### --standalone, -s
+
+Treat the argument as a standalone config sheet name:
+
+```bash
+ee apply my-config --standalone
+```
+
+### --dry-run, -d
+
+Show what would be applied without executing:
+
+```bash
+ee apply development --dry-run
+```
+
+### --format, -f
+
+Set output format for dry-run (env, dotenv, json):
+
+```bash
+ee apply development --dry-run --format json
+```
+
+### --quiet, -q
+
+Suppress informational output:
+
+```bash
+ee apply development --quiet -- npm start
+```
+
+## Practical Examples
+
+### Development Workflow
+
+```bash
+# Start development environment
+ee apply development
+
+# Verify what's loaded
+env | grep -E '(PORT|NODE_ENV|DEBUG)'
+
+# Run dev server
+ee apply development -- npm run dev
+
+# Run in background
+ee apply development -- npm run dev &
+```
+
+### Production Deployment
+
+```bash
+# Preview production environment
+ee apply production --dry-run
+
+# Validate configuration
+ee apply production --dry-run --format json | jq .
+
+# Export to file for deployment
+ee apply production --dry-run --format dotenv > .env.production
+
+# Deploy with production config
+ee apply production -- ./deploy.sh
+```
+
+### Testing
+
+```bash
+# Run unit tests
+ee apply test -- npm run test:unit
+
+# Run integration tests
+ee apply test -- npm run test:integration
+
+# Run e2e tests with staging environment
+ee apply staging -- npm run test:e2e
+```
+
+### CI/CD Pipelines
+
+```bash
+# In CI pipeline
+ee apply ci --dry-run --format dotenv > .env
+docker build --env-file .env -t myapp:latest .
+
+# Or run directly
+ee apply ci -- docker build -t myapp:latest .
+ee apply ci -- kubectl apply -f deployment.yaml
+```
+
+### Multi-Stage Deployment
+
+```bash
+# Stage 1: Build
+ee apply production -- npm run build
+
+# Stage 2: Run migrations
+ee apply production -- npm run migrate
+
+# Stage 3: Deploy
+ee apply production -- npm run deploy
+
+# All in one
+ee apply production -- bash -c "npm run build && npm run migrate && npm run deploy"
+```
+
+### Environment Switching
+
+```bash
+# Switch to development
+ee apply development
+
+# Switch to staging
+ee apply staging
+
+# Switch to production
+ee apply production
+```
+
+Each starts a new shell with that environment loaded. Exit to return to original.
+
+### Local Development with Remote Secrets
+
+```bash
+# .ee file with remote secrets
+{
+  "environments": {
+    "development": {
+      "sheets": [
+        ".env.development",        // Local config
+        "remote://dev-secrets"     // Remote secrets
+      ]
+    }
+  }
+}
+
+# Pull remote secrets first
+ee pull --sheets
+
+# Apply with remote secrets
+ee apply development -- npm start
+```
+
+### Docker Integration
+
+```bash
+# Generate .env for Docker
+ee apply production --dry-run --format dotenv > .env.docker
+
+# Use in docker-compose
+docker-compose --env-file .env.docker up
+
+# Or apply and run directly
+ee apply production -- docker-compose up
+```
+
+### Environment Files
+
+```bash
+# Apply specific .env file
+ee apply .env.staging
+
+# Apply with absolute path
+ee apply /opt/config/.env.production
+
+# Apply and run
+ee apply .env.production -- node server.js
+```
+
+## Error Handling
+
+### Environment Not Found
+
+```bash
+$ ee apply nonexistent
+Error: environment 'nonexistent' not found in project
+```
+
+**Fix**: Check available environments in `.ee` file:
+```bash
+cat .ee | jq '.environments | keys'
+```
+
+### No Project Context
+
+```bash
+$ ee apply development
+Error: no .ee file found - not in a project context
+```
+
+**Fix**: Initialize a project or navigate to project directory:
+```bash
+ee init
+# or
+cd /path/to/project
+```
+
+### Sheet Not Found
+
+```bash
+$ ee apply development
+Error: failed to resolve sheet reference: config sheet 'dev-config' not found
+```
+
+**Fix**: Create the missing sheet or pull from remote:
+```bash
+ee sheet create dev-config --schema web-service
+# or
+ee pull --sheets
+```
+
+### Validation Errors
+
+```bash
+$ ee apply production
+Error: validation failed: PORT is required
+```
+
+**Fix**: Add missing required variables to config sheet:
+```bash
+ee sheet set prod-config PORT 8080
+```
+
+### File Not Found (.env)
+
+```bash
+$ ee apply .env.production
+Error: .env file not found: .env.production
+```
+
+**Fix**: Create the .env file or use correct path:
+```bash
+touch .env.production
+# or
+ee apply /correct/path/.env.production
+```
+
+## Best Practices
+
+### Project Organization
+
+1. **Define clear environments** in `.ee` file:
+   ```json
+   {
+     "environments": {
+       "development": { "sheets": [".env.development"] },
+       "test": { "sheets": [".env.test"] },
+       "staging": { "sheets": [".env", "remote://staging-secrets"] },
+       "production": { "sheets": [".env", "remote://prod-secrets"] }
+     }
+   }
+   ```
+
+2. **Use consistent naming**: development, staging, production
+
+3. **Separate secrets**: Use remote sheets for sensitive data
+
+### Development Workflow
+
+1. **Always dry-run first** when switching environments:
+   ```bash
+   ee apply production --dry-run
+   ```
+
+2. **Validate before deployment**:
+   ```bash
+   ee apply production --dry-run --format json | jq .
+   ```
+
+3. **Document environment setup**:
+   ```bash
+   ee apply development --dry-run --format env > ENVIRONMENT.md
+   ```
+
+### Production Safety
+
+1. **Never commit secrets** to .env files in git
+
+2. **Use remote sheets** for production secrets:
+   ```json
+   {
+     "environments": {
+       "production": {
+         "sheets": [
+           ".env.production",          // Safe to commit (no secrets)
+           "remote://prod-secrets"     // Secrets on remote server
+         ]
+       }
+     }
+   }
+   ```
+
+3. **Verify before applying**:
+   ```bash
+   ee apply production --dry-run
+   # Review output carefully
+   ee apply production -- ./deploy.sh
+   ```
+
+4. **Use quiet mode in scripts** to avoid leaking info:
+   ```bash
+   ee apply production --quiet -- ./deploy.sh
+   ```
+
+### Team Collaboration
+
+1. **Share .ee file** in version control
+
+2. **Document environments** in README:
+   ```markdown
+   ## Environments
+   - `development`: Local development
+   - `test`: Run tests
+   - `staging`: Pre-production testing
+   - `production`: Live deployment
+
+   ## Usage
+   ```bash
+   ee apply development -- npm start
+   ee apply test -- npm test
+   ee apply production -- ./deploy.sh
+   ```
+   ```
+
+3. **Use consistent schemas** across team:
+   ```bash
+   ee pull --schemas
+   ```
+
+## Advanced Usage
+
+### Conditional Environments
+
+```bash
+# Apply based on git branch
+BRANCH=$(git branch --show-current)
+if [ "$BRANCH" = "main" ]; then
+  ee apply production -- ./deploy.sh
+else
+  ee apply development -- npm start
+fi
+```
+
+### Environment Composition
+
+```bash
+# Apply base, then environment-specific
+ee apply base -- bash -c "source <(ee apply development --dry-run --format env) && npm start"
+```
+
+### Chained Commands
+
+```bash
+# Run multiple commands with same environment
+ee apply production -- bash -c "
+  npm run build &&
+  npm run test &&
+  npm run deploy
+"
+```
+
+### Export and Import
+
+```bash
+# Export from one environment
+ee apply development --dry-run --format dotenv > dev.env
+
+# Import to another
+ee apply staging -- bash -c "
+  export \$(cat dev.env | xargs) &&
+  npm start
+"
+```
+
+### Custom Shell Initialization
+
+```bash
+# Apply and run with custom shell
+ee apply development -- zsh -i
+
+# Apply and run with custom rc file
+ee apply development -- bash --rcfile custom.bashrc
+```
+
+## Troubleshooting
+
+### Command Not Running
+
+```bash
+# Make sure to use -- separator
+ee apply development -- npm start  # Correct
+ee apply development npm start      # Wrong!
+```
+
+### Environment Not Persisting
+
+```bash
+# Environment only persists in spawned shell
+ee apply development        # Starts new shell with env
+env | grep NODE_ENV         # Shows in new shell
+exit                        # Exit new shell
+env | grep NODE_ENV         # Not in original shell
+
+# Use command mode for one-off commands
+ee apply development -- npm start
+```
+
+### Path Issues
+
+```bash
+# .env file not found
+ee apply .env.production                    # Wrong if file doesn't exist
+ee apply ./config/.env.production          # Correct with path
+ee apply /absolute/path/.env.production    # Correct with absolute path
+
+# Check if file exists
+ls -la .env.production
+```
+
+### Sheet Resolution
+
+```bash
+# Sheet not found
+ee apply development  # Error: sheet not found
+
+# Debug by checking .ee file
+cat .ee | jq '.environments.development'
+
+# List available sheets
+ee sheet list
+
+# Pull from remote if needed
+ee pull --sheets
+```
+
+## Next Steps
+
+- Learn about [Project Configuration](/cli/project-configuration) for defining environments
+- Explore [Config Sheets](/cli/config-sheets) for managing values
+- Understand [Schemas](/cli/schemas) for validation
+- Read about the [Root Command](/cli/root) for inspecting current environment

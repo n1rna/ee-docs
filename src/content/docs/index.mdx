@@ -46,18 +46,23 @@ import "../../styles/global.css";
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
         <p class="text-lg font-medium mb-3">Apply Environments</p>
-        <p class="leading-relaxed">Apply environment configurations to your shell or run commands with specific variable sets. Load from .env files, standalone sheets, or project environments.</p>
+        <p class="leading-relaxed">Apply environment configurations to your shell or run commands with specific variable sets. Load from .env files, standalone sheets, or project environments defined in your .ee file.</p>
       </div>
     </div>
 		<div class="m-auto w-full">
 			```bash
+			# Apply .env file
 			ee apply .env
-			ee apply -s standalone-sheet
-      ee apply production # inside a project
 
-			# Run commands with the applied environment
-			ee apply production -- echo "Hello, ${APP_USER}"
-			ee apply .env -- just run
+			# Apply standalone sheet
+			ee apply my-config --standalone
+
+			# Apply project environment (from .ee file)
+			ee apply production
+
+			# Run commands with environment
+			ee apply production -- npm start
+			ee apply development -- npm test
       ```
     </div>
 
@@ -65,22 +70,28 @@ import "../../styles/global.css";
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
 			<div class="m-auto w-full">
       ```bash
-      # Create a new schema for your project
+      # Create a schema
       ee schema create web-service \
         --description "Schema for web services" \
         --variable "PORT:number:Server port:false:8080" \
         --variable "DEBUG:boolean:Debug mode:false:false"
 
-      # Instantiate ee in your directory
+      # Initialize project with schema
       ee init --schema web-service
-      ee project env add staging
+
+      # Edit .ee file to add environments
+      # Environments defined in .ee file:
+      # { "environments": {
+      #     "development": { "sheets": [".env.development"] },
+      #     "staging": { "sheets": [".env.staging"] }
+      # }}
       ```
     </div>
 
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
-        <p class="text-lg font-medium mb-3">Manage projects</p>
-        <p class="leading-relaxed">Create and manage projects with predefined schemas. Initialize new projects, add multiple environments, and maintain consistent configuration structure.</p>
+        <p class="text-lg font-medium mb-3">Initialize Projects</p>
+        <p class="leading-relaxed">Initialize projects with .ee configuration files. Define environments and their config sheets directly in the .ee file for a portable, version-controlled setup.</p>
       </div>
     </div>
 
@@ -109,14 +120,21 @@ import "../../styles/global.css";
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
         <p class="text-lg font-medium mb-3">Remote sync</p>
-        <p class="leading-relaxed">Synchronize your configurations with remote repositories. Set up team collaboration by connecting to shared configuration sources and pulling updates.</p>
+        <p class="leading-relaxed">Synchronize your schemas and config sheets with a remote server. Configure remote URL in your .ee file and push/pull for team collaboration.</p>
       </div>
     </div>
 		<div class="m-auto w-full">
 			```bash
-			ee init
-			ee remote set company@easyenv.cloud
-			ee pull
+			# Configure remote in .ee file
+			# { "remote": "https://api.ee.dev" }
+
+			# Pull schemas and sheets from remote
+			ee pull --schemas
+			ee pull --sheets
+
+			# Push your changes
+			ee push --schemas
+			ee push --sheets
       ```
     </div>
 
@@ -124,44 +142,55 @@ import "../../styles/global.css";
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
 			<div class="m-auto w-full">
 ```bash
-ee sheet export --env production
-ee sheet create --import .env
-ee -I 'XDG*' -f json
+# Export environments
+ee apply production --dry-run --format dotenv > .env.prod
+ee sheet export my-sheet --format json
+
+# Import .env files
+ee sheet create my-config --import .env
+
+# Filter current environment variables
+ee --filter 'NODE*,PORT' --format json
 ```
     </div>
 
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
         <p class="text-lg font-medium mb-3">Export and import</p>
-        <p class="leading-relaxed">Export configurations to various formats including .env files and JSON. Import existing .env files to create new sheets, and filter variables with patterns.</p>
+        <p class="leading-relaxed">Export configurations to various formats including .env files and JSON. Import existing .env files to create new sheets, and filter current environment variables with patterns.</p>
       </div>
     </div>
 
   </div>
 </div>
 
-## Core Concepts
+## CLI Documentation
 
 <CardGrid>
+	<Card title="Project Configuration" icon="setting">
+		Learn about the .ee file structure and how to configure your project.
+
+		[View documentation →](/cli/project-configuration)
+	</Card>
 	<Card title="Schemas" icon="starship">
 		Define the structure and validation rules for your environment variables.
 
-		[Learn about schemas →](/concepts/schemas)
+		[View documentation →](/cli/schemas)
 	</Card>
-	<Card title="Projects" icon="rocket">
-		Organize multiple environments for a single application or service.
-
-		[Learn about projects →](/concepts/projects)
-	</Card>
-	<Card title="Environments" icon="moon">
-		Manage different deployment stages with environment-specific configurations.
-
-		[Learn about environments →](/concepts/environments)
-	</Card>
-	<Card title="Configuration Sheets" icon="document">
+	<Card title="Config Sheets" icon="document">
 		Store and manage the actual variable values with inheritance support.
 
-		[Learn about sheets →](/concepts/sheets)
+		[View documentation →](/cli/config-sheets)
+	</Card>
+	<Card title="Apply Command" icon="rocket">
+		Apply environment variables from configs, sheets, and .env files.
+
+		[View documentation →](/cli/apply)
+	</Card>
+	<Card title="Root Command" icon="list-format">
+		Display and filter environment variables in your current shell.
+
+		[View documentation →](/cli/root-command)
 	</Card>
 </CardGrid>
 
