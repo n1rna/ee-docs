@@ -1,0 +1,54 @@
+---
+title: llms.txt
+description: Machine-readable reference for AI coding agents and LLMs
+---
+
+`ee` provides a [`llms.txt`](/llms.txt) file — a comprehensive, plain-text reference designed for large language models and AI coding agents to understand and use the `ee` CLI tool effectively.
+
+## What is llms.txt?
+
+[llms.txt](https://llmstxt.org/) is a convention for providing machine-readable documentation that AI assistants can consume to understand how to use a tool, library, or service. It's a single plain-text file that contains everything an LLM needs to know — commands, configuration formats, code examples, and common workflows.
+
+## How to use it
+
+### With Claude Code, Cursor, or other AI coding agents
+
+Point your AI assistant to the file so it can understand `ee` and help you use it:
+
+```bash
+# Fetch and include in context
+curl -sL https://ee.n1rna.net/llms.txt
+```
+
+Or reference it in your project's `CLAUDE.md`, `.cursorrules`, or equivalent AI configuration file:
+
+```markdown
+## Tools
+
+This project uses `ee` for environment variable management.
+Reference: https://ee.n1rna.net/llms.txt
+```
+
+### With ChatGPT, Claude, or other LLM chat interfaces
+
+Paste the contents of the file into your conversation, or provide the URL and ask the model to read it:
+
+```
+Read https://ee.n1rna.net/llms.txt and help me set up ee for my project.
+```
+
+## What's included
+
+The `llms.txt` file covers:
+
+- **Installation** — how to install `ee`
+- **Project configuration** — complete `.ee` file format with all sections
+- **Schema file format** — YAML and JSON examples with all variable properties
+- **Every CLI command** — flags, arguments, examples, and behavior details
+- **Common workflows** — new project setup, multi-environment configs, pushing secrets, CI/CD integration
+- **`.env` file format** — annotated format with schema metadata
+- **Best practices** — file organization, gitignore patterns, source stacking
+
+## Direct link
+
+**[https://ee.n1rna.net/llms.txt](/llms.txt)**
