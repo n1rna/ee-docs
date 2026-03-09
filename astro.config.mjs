@@ -38,8 +38,7 @@ export default defineConfig({
 					items: [
 						{ label: "Project Configuration", slug: "cli/project-configuration" },
 						{ label: "Schemas", slug: "cli/schemas" },
-						{ label: "Config Sheets", slug: "cli/config-sheets" },
-						{ label: "Origins (Push Secrets)", slug: "cli/origins" },
+		{ label: "Origins (Push Secrets)", slug: "cli/origins" },
 						{ label: "Apply Command", slug: "cli/apply" },
 						{ label: "Root Command", slug: "cli/root-command" },
 					],

@@ -75,38 +75,6 @@ Supported types:
 - `email`: Email address validation
 - `json`: JSON string validation
 
-## Local vs Remote Schemas
-
-Schemas can be managed locally or synchronized with a remote server.
-
-### Local Schemas
-
-Stored in `~/.ee/schemas/` on your machine.
-
-**Advantages**:
-- Work offline
-- Fast access
-- Full control
-
-**Use for**:
-- Personal projects
-- Development schemas
-- Experimental configurations
-
-### Remote Schemas
-
-Stored on a remote ee server and synchronized via push/pull.
-
-**Advantages**:
-- Team collaboration
-- Centralized management
-- Version control
-
-**Use for**:
-- Shared team schemas
-- Production configurations
-- Multi-project standards
-
 ## Creating Schemas
 
 ### Interactive Mode
@@ -307,7 +275,7 @@ You can override variables from parent schemas:
 
 ## Schema References
 
-Schemas can be referenced in different ways:
+Schemas can be referenced in different ways within `.ee` files:
 
 ### Local Reference
 
@@ -319,8 +287,39 @@ Schemas can be referenced in different ways:
 }
 ```
 
-References a schema named "web-service" from local storage.
+References a schema named "web-service" from local storage (`~/.ee/schemas/`).
 
+### File-Based Schema References
+
+Schemas can be loaded directly from YAML or JSON files alongside your `.ee` file:
+
+```json
+{
+  "schema": {
+    "ref": "file://schema.yaml"
+  }
+}
+```
+
+Relative paths are also supported:
+
+```json
+{
+  "schema": {
+    "ref": "./schema.yaml"
+  }
+}
+```
+
+```json
+{
+  "schema": {
+    "ref": "../shared/schema.yaml"
+  }
+}
+```
+
+Files with `.yaml`, `.yml`, and `.json` extensions are auto-detected. This is useful for keeping schema definitions alongside your project files without needing to install them into `~/.ee/schemas/`.
 
 ### Schema ID Reference
 
@@ -337,7 +336,7 @@ References a schema by its unique ID (UUID).
 
 ## Schema Validation
 
-Schemas validate config sheets and .env files to ensure correctness.
+Schemas validate .env files to ensure correctness.
 
 ### Validation Rules
 
@@ -389,11 +388,11 @@ PORT=3000
 Validation happens automatically:
 
 ```bash
-# When creating config sheets
-ee sheet create my-config --schema web-service --value PORT=3000
-
 # When applying environments
 ee apply development
+
+# When verifying configuration
+ee verify
 
 # Validation errors are shown immediately
 ```
@@ -643,7 +642,6 @@ ee schema show my-schema --format json
 
 ## Next Steps
 
-- Learn about [Config Sheets](/cli/config-sheets) for managing values
 - Explore [Project Configuration](/cli/project-configuration) for using schemas
 - Set up [Origins](/cli/origins) for pushing secrets to GitHub or Cloudflare
 - Understand the [Apply Command](/cli/apply) for applying validated environments

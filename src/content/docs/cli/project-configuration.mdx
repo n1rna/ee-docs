@@ -31,10 +31,10 @@ Unlike traditional environment management tools that rely on centralized databas
   },
   "environments": {
     "development": {
-      "sheets": [".env.development"]
+      "env": ".env.development"
     },
     "production": {
-      "sheets": [".env.production"]
+      "env": ".env.production"
     }
   },
   "origins": {
@@ -74,16 +74,16 @@ Defines the schema for environment variables. Can be:
 ```
 
 #### `environments` (required)
-Defines the available environments and how they're composed from config sheets.
+Defines the available environments and how they're composed from sources.
 
 ```json
 {
   "environments": {
     "development": {
-      "sheets": [".env.development"]
+      "env": ".env.development"
     },
     "production": {
-      "sheets": [".env.production", "local://prod-secrets"]
+      "sources": [".env.production", ".env.production.secrets"]
     }
   }
 }
@@ -186,60 +186,53 @@ Variables defined inline override inherited variables with the same name.
 
 Environments define how configuration is composed for different deployment stages.
 
-### Single Sheet Environment
+### Single Source Environment
 
 ```json
 {
   "environments": {
     "development": {
-      "sheets": [".env.development"]
+      "env": ".env.development"
     }
   }
 }
 ```
 
-### Multiple Sheets (Stacking)
+### Multiple Sources (Stacking)
 
-Sheets are merged in order, with later sheets overriding earlier ones:
+Sources are merged in order, with later sources overriding earlier ones:
 
 ```json
 {
   "environments": {
     "production": {
-      "sheets": [
+      "sources": [
         ".env",                      // Base configuration
         ".env.production",           // Production overrides
-        "local://prod-secrets"       // Secret values from local storage
+        ".env.production.secrets"    // Secret values
       ]
     }
   }
 }
 ```
 
-**Merge Order**: Each sheet in the array is merged sequentially. If the same variable appears in multiple sheets, the value from the last sheet wins.
+**Merge Order**: Each source in the array is merged sequentially. If the same variable appears in multiple sources, the value from the last source wins.
 
-### Sheet Types
+### Source Types
 
-Environments can reference different types of sheets:
+Environments can reference different types of sources:
 
 #### 1. .env Files
 ```json
 {
-  "sheets": [".env", ".env.development", ".env.local"]
+  "sources": [".env", ".env.development", ".env.local"]
 }
 ```
 
-#### 2. Local Config Sheets
+#### 2. Inline Values
 ```json
 {
-  "sheets": ["local://shared-config", "local://dev-secrets"]
-}
-```
-
-#### 3. Inline Values
-```json
-{
-  "sheets": [
+  "sources": [
     {
       "DEBUG": "true",
       "LOG_LEVEL": "debug",
@@ -249,17 +242,17 @@ Environments can reference different types of sheets:
 }
 ```
 
-### Mixed Sheet Types
+### Mixed Source Types
 
-Combine different sheet types for flexibility:
+Combine different source types for flexibility:
 
 ```json
 {
   "environments": {
     "staging": {
-      "sheets": [
+      "sources": [
         ".env.base",                    // File-based base config
-        "local://shared-config",        // Local config sheet
+        ".env.staging",                 // Staging-specific config
         {                               // Inline overrides
           "FEATURE_FLAG_NEW_UI": "true",
           "DEBUG": "false"
@@ -385,22 +378,22 @@ ee apply production -- npm start
 ee apply staging --dry-run
 ```
 
-## Sheet Stacking & Inheritance
+## Source Stacking & Inheritance
 
-Sheet stacking allows you to compose configuration from multiple sources.
+Source stacking allows you to compose configuration from multiple sources.
 
 ### Stacking Order
 
-Sheets are merged **left to right**, with later values overriding earlier ones:
+Sources are merged **left to right**, with later values overriding earlier ones:
 
 ```json
 {
   "environments": {
     "production": {
-      "sheets": [
+      "sources": [
         ".env.base",           // 1. Base values loaded first
         ".env.production",     // 2. Production values override base
-        "local://secrets"      // 3. Secrets override everything
+        ".env.secrets"         // 3. Secrets override everything
       ]
     }
   }
@@ -411,7 +404,7 @@ Sheets are merged **left to right**, with later values overriding earlier ones:
 ```
 .env.base:           PORT=3000, DEBUG=true
 .env.production:     DEBUG=false, DB_HOST=prod.example.com
-local://secrets:     DB_PASSWORD=secret123
+.env.secrets:        DB_PASSWORD=secret123
 
 Final result:        PORT=3000, DEBUG=false, DB_HOST=prod.example.com, DB_PASSWORD=secret123
 ```
@@ -423,10 +416,10 @@ Final result:        PORT=3000, DEBUG=false, DB_HOST=prod.example.com, DB_PASSWO
 {
   "environments": {
     "development": {
-      "sheets": [".env", ".env.development"]
+      "sources": [".env", ".env.development"]
     },
     "production": {
-      "sheets": [".env", ".env.production"]
+      "sources": [".env", ".env.production"]
     }
   }
 }
@@ -437,8 +430,8 @@ Final result:        PORT=3000, DEBUG=false, DB_HOST=prod.example.com, DB_PASSWO
 {
   "environments": {
     "production": {
-      "sheets": [
-        "local://shared-config",    // Shared across team
+      "sources": [
+        ".env.production",          // Shared across team
         ".env.local"                // Personal overrides (gitignored)
       ]
     }
@@ -451,9 +444,9 @@ Final result:        PORT=3000, DEBUG=false, DB_HOST=prod.example.com, DB_PASSWO
 {
   "environments": {
     "staging": {
-      "sheets": [
+      "sources": [
         ".env.defaults",           // Default values
-        "local://team-config",     // Team-wide config
+        ".env.staging",            // Staging-specific config
         ".env.local"               // Local overrides
       ]
     }
@@ -490,13 +483,13 @@ For full documentation on origins, see [Origins (Push Secrets)](/cli/origins).
   },
   "environments": {
     "development": {
-      "sheets": [".env", ".env.development", ".env.local"]
+      "sources": [".env", ".env.development", ".env.local"]
     },
     "staging": {
-      "sheets": [".env", ".env.staging"]
+      "sources": [".env", ".env.staging"]
     },
     "production": {
-      "sheets": [".env", ".env.production"]
+      "sources": [".env", ".env.production"]
     }
   },
   "origins": {
@@ -527,14 +520,14 @@ For full documentation on origins, see [Origins (Push Secrets)](/cli/origins).
   },
   "environments": {
     "development": {
-      "sheets": [
-        "local://shared-dev-config",
+      "sources": [
+        ".env.shared.development",
         ".env.development"
       ]
     },
     "production": {
-      "sheets": [
-        "local://shared-prod-config",
+      "sources": [
+        ".env.shared.production",
         ".env.production"
       ]
     }
@@ -552,7 +545,7 @@ For full documentation on origins, see [Origins (Push Secrets)](/cli/origins).
   },
   "environments": {
     "development": {
-      "sheets": [
+      "sources": [
         ".env.shared",
         ".env.development",
         {
@@ -563,7 +556,7 @@ For full documentation on origins, see [Origins (Push Secrets)](/cli/origins).
       ]
     },
     "production": {
-      "sheets": [
+      "sources": [
         ".env.shared",
         ".env.production"
       ]
@@ -605,10 +598,9 @@ my-project/
 ### Security
 
 1. **Never commit secrets** to `.ee` file
-2. **Use local config sheets** for team secrets
-3. **Use remote config sheets** for production secrets
-4. **Reference sheets** instead of inline values for sensitive data
-5. **Use .env.local** for personal overrides (gitignored)
+2. **Use .env.local** for personal secrets (gitignored)
+3. **Use origins** (GitHub, Cloudflare) for production secrets
+4. **Use .env files** instead of inline values for sensitive data
 
 ### Schema Management
 
@@ -621,7 +613,7 @@ my-project/
 
 1. **Consistent naming**: development, staging, production
 2. **Progressive complexity**: simple dev → complex prod
-3. **Sheet stacking**: base → environment → secrets
+3. **Source stacking**: base → environment → secrets
 4. **Local overrides**: always allow .env.local at the end
 
 ## Troubleshooting
@@ -665,21 +657,19 @@ cat .ee | jq '.environments | keys'
 # Edit .ee and add environment definition
 ```
 
-### Sheet Resolution Errors
+### .env File Resolution Errors
 
 ```bash
 # Test environment resolution
 ee apply development --dry-run
 
-# Check if referenced sheets exist:
-# - .env files: ls -la .env*
-# - Local sheets: ee sheet list
+# Check if referenced .env files exist:
+ls -la .env*
 ```
 
 ## Next Steps
 
 - Learn about [Schemas](/cli/schemas) for defining variable structures
-- Explore [Config Sheets](/cli/config-sheets) for managing configuration values
 - Set up [Origins](/cli/origins) for pushing secrets to GitHub or Cloudflare
 - Understand the [Apply Command](/cli/apply) for using environments
 - Read about the [Root Command](/cli/root-command) for environment inspection

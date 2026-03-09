@@ -1,16 +1,16 @@
 ---
 title: Apply Command
-description: Apply environment variables from project configurations, config sheets, and .env files
+description: Apply environment variables from project environments and .env files
 ---
 
-The `ee apply` command is the primary way to load and use environment configurations. It supports multiple sources: project environments, standalone config sheets, and .env files, making it incredibly flexible for different workflows.
+The `ee apply` command is the primary way to load and use environment configurations. It supports multiple sources: project environments and .env files, making it incredibly flexible for different workflows.
 
 ## Overview
 
 The apply command:
 - **Loads environment variables** from various sources
 - **Validates against schemas** (when applicable)
-- **Merges multiple sheets** in the correct order
+- **Merges multiple sources** in the correct order
 - **Starts a new shell** or **runs specific commands** with the environment
 - **Supports dry-run mode** to preview what will be applied
 
@@ -31,7 +31,7 @@ ee apply production
 This:
 1. Reads the `.ee` project configuration
 2. Finds the environment definition
-3. Merges all config sheets/files for that environment
+3. Merges all sources for that environment
 4. Validates against the schema
 5. Starts a new shell with the environment loaded
 
@@ -49,16 +49,6 @@ ee apply test -- npm test
 ```
 
 The `--` separator marks the beginning of the command to run.
-
-### Apply Standalone Config Sheet
-
-```bash
-# Apply a standalone config sheet (not tied to a project)
-ee apply my-config --standalone
-
-# Run command with standalone sheet
-ee apply my-config --standalone -- node server.js
-```
 
 ### Apply .env File
 
@@ -89,12 +79,12 @@ Once the project is found:
 
 1. **Load `.ee` file**: Parse project configuration
 2. **Find environment**: Get the environment definition (e.g., "development")
-3. **Resolve sheets**: Resolve all sheet references in order
-4. **Merge values**: Merge sheets left-to-right (later overrides earlier)
+3. **Resolve sources**: Resolve all source references in order
+4. **Merge values**: Merge sources left-to-right (later overrides earlier)
 5. **Validate**: Check against project schema
 6. **Apply**: Set environment variables
 
-### Sheet Stacking Example
+### Source Stacking Example
 
 Given this `.ee` configuration:
 
@@ -102,14 +92,14 @@ Given this `.ee` configuration:
 {
   "project": "my-app",
   "schema": {
-    "ref": "local://web-service"
+    "ref": "web-service"
   },
   "environments": {
     "production": {
-      "sheets": [
+      "sources": [
         ".env.base",                 // 1. Base config
-        "local://prod-config",       // 2. Production overrides
-        "local://prod-secrets"       // 3. Secret values
+        ".env.production",           // 2. Production overrides
+        ".env.production.local"      // 3. Local secret values
       ]
     }
   }
@@ -124,18 +114,18 @@ When you run `ee apply production`:
    DEBUG=true
    ```
 
-2. **Merge local://prod-config**:
+2. **Merge .env.production**:
    ```
    PORT=3000          (from .env.base)
    DEBUG=false        (overridden)
    NODE_ENV=production (new)
    ```
 
-3. **Merge local://prod-secrets**:
+3. **Merge .env.production.local**:
    ```
    PORT=3000              (from .env.base)
-   DEBUG=false            (from prod-config)
-   NODE_ENV=production    (from prod-config)
+   DEBUG=false            (from .env.production)
+   NODE_ENV=production    (from .env.production)
    DATABASE_PASSWORD=secret (new)
    API_KEY=key123         (new)
    ```
@@ -301,26 +291,14 @@ ee apply .env
 
 # Detects as .env file (path-like)
 ee apply ./config/.env.production
-
-# Detects as standalone config sheet (with flag)
-ee apply my-config --standalone
 ```
 
 ### Priority Order
 
 1. **File path** (if argument looks like a path or file exists)
-2. **Standalone sheet** (if `--standalone` flag is set)
-3. **Project environment** (default, searches for `.ee` file)
+2. **Project environment** (default, searches for `.ee` file)
 
 ## Flags and Options
-
-### --standalone, -s
-
-Treat the argument as a standalone config sheet name:
-
-```bash
-ee apply my-config --standalone
-```
 
 ### --dry-run, -d
 
@@ -436,14 +414,14 @@ ee apply production
 
 Each starts a new shell with that environment loaded. Exit to return to original.
 
-### Local Development with Remote Secrets
+### Local Development with Secrets
 
 ```bash
-# .ee file with remote secrets
+# .ee file with local secrets
 {
   "environments": {
     "development": {
-      "sheets": [
+      "sources": [
         ".env.development",        // Local config
         ".env.development.local"   // Local secrets (gitignored)
       ]
@@ -509,16 +487,16 @@ ee init
 cd /path/to/project
 ```
 
-### Sheet Not Found
+### .env File Not Found
 
 ```bash
 $ ee apply development
-Error: failed to resolve sheet reference: config sheet 'dev-config' not found
+Error: failed to resolve source: .env file '.env.development' not found
 ```
 
-**Fix**: Create the missing sheet or pull from remote:
+**Fix**: Create the missing .env file:
 ```bash
-ee sheet create dev-config --schema web-service
+touch .env.development
 ```
 
 ### Validation Errors
@@ -528,9 +506,9 @@ $ ee apply production
 Error: validation failed: PORT is required
 ```
 
-**Fix**: Add missing required variables to config sheet:
+**Fix**: Add missing required variables to the appropriate .env file:
 ```bash
-ee sheet set prod-config PORT 8080
+echo "PORT=8080" >> .env.production
 ```
 
 ### File Not Found (.env)
@@ -555,17 +533,17 @@ ee apply /correct/path/.env.production
    ```json
    {
      "environments": {
-       "development": { "sheets": [".env.development"] },
-       "test": { "sheets": [".env.test"] },
-       "staging": { "sheets": [".env", ".env.staging"] },
-       "production": { "sheets": [".env", ".env.production"] }
+       "development": { "env": ".env.development" },
+       "test": { "env": ".env.test" },
+       "staging": { "sources": [".env", ".env.staging"] },
+       "production": { "sources": [".env", ".env.production"] }
      }
    }
    ```
 
 2. **Use consistent naming**: development, staging, production
 
-3. **Separate secrets**: Use remote sheets for sensitive data
+3. **Separate secrets**: Use `.local` files (gitignored) for sensitive data
 
 ### Development Workflow
 
@@ -588,14 +566,14 @@ ee apply /correct/path/.env.production
 
 1. **Never commit secrets** to .env files in git
 
-2. **Use remote sheets** for production secrets:
+2. **Use `.local` files** for production secrets:
    ```json
    {
      "environments": {
        "production": {
-         "sheets": [
+         "sources": [
            ".env.production",          // Safe to commit (no secrets)
-           "local://prod-secrets"      // Secrets from local config sheet
+           ".env.production.local"     // Secrets (gitignored)
          ]
        }
      }
@@ -726,22 +704,21 @@ ee apply /absolute/path/.env.production    # Correct with absolute path
 ls -la .env.production
 ```
 
-### Sheet Resolution
+### .env File Resolution
 
 ```bash
-# Sheet not found
-ee apply development  # Error: sheet not found
+# Source not found
+ee apply development  # Error: source not found
 
 # Debug by checking .ee file
 cat .ee | jq '.environments.development'
 
-# List available sheets
-ee sheet list
+# Check that referenced .env files exist
+ls -la .env.development
 ```
 
 ## Next Steps
 
 - Learn about [Project Configuration](/cli/project-configuration) for defining environments
-- Explore [Config Sheets](/cli/config-sheets) for managing values
 - Understand [Schemas](/cli/schemas) for validation
 - Read about the [Root Command](/cli/root) for inspecting current environment

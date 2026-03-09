@@ -7,7 +7,7 @@ Origins let you push environment secrets from your local `.env` files to externa
 
 ## Overview
 
-The `ee push` command reads your local environment configuration (resolved from `.env` files and config sheets in your `.ee` project) and pushes the secrets to a configured origin.
+The `ee push` command reads your local environment configuration (resolved from `.env` files in your `.ee` project) and pushes the secrets to a configured origin.
 
 ```bash
 # Push production secrets to GitHub
@@ -52,7 +52,7 @@ Origins are configured in the `origins` section of your `.ee` file. Each origin 
   "schema": { ... },
   "environments": {
     "production": {
-      "sheets": [".env.production"]
+      "env": ".env.production"
     }
   },
   "origins": {
@@ -254,7 +254,7 @@ The **bundled** push mode is designed to work with [ee-action](https://github.co
   },
   "environments": {
     "production": {
-      "sheets": [".env.production"]
+      "env": ".env.production"
     }
   },
   "origins": {
@@ -289,8 +289,8 @@ If a tool is not installed or not authenticated, ee will show the appropriate in
 ```json
 {
   "environments": {
-    "staging": { "sheets": [".env.staging"] },
-    "production": { "sheets": [".env.production"] }
+    "staging": { "env": ".env.staging" },
+    "production": { "env": ".env.production" }
   },
   "origins": {
     "github": {
@@ -418,5 +418,4 @@ cat .ee | jq '.environments | keys'
 ## Next Steps
 
 - Learn about [Project Configuration](/cli/project-configuration) for setting up your `.ee` file
-- Explore [Config Sheets](/cli/config-sheets) for managing configuration values
 - Understand the [Apply Command](/cli/apply) for applying environments locally

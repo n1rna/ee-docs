@@ -46,16 +46,13 @@ import "../../styles/global.css";
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
         <p class="text-lg font-medium mb-3">Apply Environments</p>
-        <p class="leading-relaxed">Apply environment configurations to your shell or run commands with specific variable sets. Load from .env files, standalone sheets, or project environments defined in your .ee file.</p>
+        <p class="leading-relaxed">Apply environment configurations to your shell or run commands with specific variable sets. Load from .env files or project environments defined in your .ee file.</p>
       </div>
     </div>
 		<div class="m-auto w-full">
 			```bash
 			# Apply .env file
 			ee apply .env
-
-			# Apply standalone sheet
-			ee apply my-config --standalone
 
 			# Apply project environment (from .ee file)
 			ee apply production
@@ -79,11 +76,10 @@ import "../../styles/global.css";
       # Initialize project with schema
       ee init --schema web-service
 
-      # Edit .ee file to add environments
       # Environments defined in .ee file:
       # { "environments": {
-      #     "development": { "sheets": [".env.development"] },
-      #     "staging": { "sheets": [".env.staging"] }
+      #     "development": { "env": ".env.development" },
+      #     "staging": { "env": ".env.staging" }
       # }}
       ```
     </div>
@@ -91,7 +87,7 @@ import "../../styles/global.css";
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
         <p class="text-lg font-medium mb-3">Initialize Projects</p>
-        <p class="leading-relaxed">Initialize projects with .ee configuration files. Define environments and their config sheets directly in the .ee file for a portable, version-controlled setup.</p>
+        <p class="leading-relaxed">Initialize projects with .ee configuration files. Define environments and their .env file sources directly in the .ee file for a portable, version-controlled setup.</p>
       </div>
     </div>
 
@@ -142,10 +138,10 @@ import "../../styles/global.css";
 ```bash
 # Export environments
 ee apply production --dry-run --format dotenv > .env.prod
-ee sheet export my-sheet --format json
+ee apply production --dry-run --format json > config.json
 
-# Import .env files
-ee sheet create my-config --import .env
+# Apply .env files directly
+ee apply .env.staging
 
 # Filter current environment variables
 ee --filter 'NODE*,PORT' --format json
@@ -155,7 +151,7 @@ ee --filter 'NODE*,PORT' --format json
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
         <p class="text-lg font-medium mb-3">Export and import</p>
-        <p class="leading-relaxed">Export configurations to various formats including .env files and JSON. Import existing .env files to create new sheets, and filter current environment variables with patterns.</p>
+        <p class="leading-relaxed">Export configurations to various formats including .env files and JSON. Apply existing .env files directly, and filter current environment variables with patterns.</p>
       </div>
     </div>
 
@@ -175,18 +171,13 @@ ee --filter 'NODE*,PORT' --format json
 
 		[View documentation →](/cli/schemas)
 	</Card>
-	<Card title="Config Sheets" icon="document">
-		Store and manage the actual variable values with inheritance support.
-
-		[View documentation →](/cli/config-sheets)
-	</Card>
 	<Card title="Origins (Push Secrets)" icon="setting">
 		Push environment secrets to GitHub and Cloudflare Workers.
 
 		[View documentation →](/cli/origins)
 	</Card>
 	<Card title="Apply Command" icon="rocket">
-		Apply environment variables from configs, sheets, and .env files.
+		Apply environment variables from .env files and project environments.
 
 		[View documentation →](/cli/apply)
 	</Card>

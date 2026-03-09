@@ -52,10 +52,10 @@ This creates a `.ee` configuration file in your project root with:
   },
   "environments": {
     "development": {
-      "sheets": [".env.development"]
+      "env": ".env.development"
     },
     "production": {
-      "sheets": [".env.production"]
+      "env": ".env.production"
     }
   }
 }
@@ -189,45 +189,30 @@ Edit your `.ee` file to reference the schema:
 {
   "project": "my-web-app",
   "schema": {
-    "ref": "local://web-service"
+    "ref": "web-service"
   },
   "environments": {
     "development": {
-      "sheets": [".env.development"]
+      "env": ".env.development"
     },
     "production": {
-      "sheets": [".env.production"]
+      "env": ".env.production"
     }
   }
 }
 ```
 
-### Use Config Sheets Instead of .env Files
-
-Create a config sheet:
-
-```bash
-ee sheet create dev-config \
-  --schema web-service \
-  --value PORT=3000 \
-  --value DATABASE_URL=postgres://localhost:5432/myapp_dev \
-  --value DEBUG=true \
-  --value API_KEY=dev-key-123
-```
-
-Update `.ee` to use the config sheet:
+You can also reference a schema from a local file:
 
 ```json
 {
-  "environments": {
-    "development": {
-      "sheets": ["local://dev-config"]
-    }
+  "schema": {
+    "ref": "./schema.yaml"
   }
 }
 ```
 
-### Stack Multiple Sheets
+### Stack Multiple Sources
 
 Create a base configuration and environment-specific overrides:
 
@@ -250,13 +235,13 @@ DATABASE_URL=postgres://localhost:5432/myapp_dev
 {
   "environments": {
     "development": {
-      "sheets": [
+      "sources": [
         ".env",              // Base config
         ".env.development"   // Dev overrides
       ]
     },
     "production": {
-      "sheets": [
+      "sources": [
         ".env",              // Base config
         ".env.production"    // Prod overrides
       ]
@@ -320,11 +305,11 @@ Edit your `.ee` file to add an origin:
 {
   "project": "my-web-app",
   "schema": {
-    "ref": "local://web-service"
+    "ref": "web-service"
   },
   "environments": {
     "production": {
-      "sheets": [".env.production"]
+      "env": ".env.production"
     }
   },
   "origins": {
@@ -412,16 +397,6 @@ ee schema edit <name>                # Edit schema
 ee schema delete <name>              # Delete schema
 ```
 
-### Config Sheet Management
-```bash
-ee sheet create <name> --schema <schema>  # Create config sheet
-ee sheet list                             # List all sheets
-ee sheet show <name>                      # Show sheet details
-ee sheet edit <name>                      # Edit sheet
-ee sheet set <name> KEY value             # Set individual value
-ee sheet export <name> --format env       # Export sheet
-```
-
 ### Environment Management
 ```bash
 ee apply <env>                       # Start shell with environment
@@ -453,7 +428,6 @@ Now that you understand the basics, dive deeper into:
 
 - **[Project Configuration](/cli/project-configuration)** - Learn about the `.ee` file structure and advanced features
 - **[Schemas](/cli/schemas)** - Define validation rules and variable types
-- **[Config Sheets](/cli/config-sheets)** - Manage configuration values locally and remotely
 - **[Apply Command](/cli/apply)** - Master environment application and command execution
 - **[Root Command](/cli/root)** - Inspect and filter current environment variables
 
@@ -461,6 +435,6 @@ Now that you understand the basics, dive deeper into:
 
 1. **Always use dry-run first**: `ee apply production --dry-run` before deploying
 2. **Never commit secrets**: Keep sensitive `.env` files in `.gitignore`
-3. **Use sheet stacking**: Combine base config with environment-specific overrides
+3. **Use source stacking**: Combine base config with environment-specific overrides
 4. **Leverage schemas**: Define validation rules to catch errors early
 5. **Push secrets to origins**: Use `ee push` to deploy secrets to GitHub or Cloudflare
