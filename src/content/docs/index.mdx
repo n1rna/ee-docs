@@ -119,22 +119,20 @@ import "../../styles/global.css";
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
 		<div class="mt-4">
       <div class="rounded-lg flex flex-col">
-        <p class="text-lg font-medium mb-3">Remote sync</p>
-        <p class="leading-relaxed">Synchronize your schemas and config sheets with a remote server. Configure remote URL in your .ee file and push/pull for team collaboration.</p>
+        <p class="text-lg font-medium mb-3">Push secrets to GitHub & Cloudflare</p>
+        <p class="leading-relaxed">Push your environment secrets directly to GitHub or Cloudflare Workers. Configure origins in your .ee file and push secrets from your local .env files using the tools you already have.</p>
       </div>
     </div>
 		<div class="m-auto w-full">
 			```bash
-			# Configure remote in .ee file
-			# { "remote": "https://api.ee.dev" }
+			# Configure origins in .ee file
+			# { "origins": { "github": { "type": "github" } } }
 
-			# Pull schemas and sheets from remote
-			ee pull --schemas
-			ee pull --sheets
+			# Push production secrets to GitHub
+			ee push github production
 
-			# Push your changes
-			ee push --schemas
-			ee push --sheets
+			# Preview what would be pushed
+			ee push production --dry-run
       ```
     </div>
 
@@ -181,6 +179,11 @@ ee --filter 'NODE*,PORT' --format json
 		Store and manage the actual variable values with inheritance support.
 
 		[View documentation →](/cli/config-sheets)
+	</Card>
+	<Card title="Origins (Push Secrets)" icon="setting">
+		Push environment secrets to GitHub and Cloudflare Workers.
+
+		[View documentation →](/cli/origins)
 	</Card>
 	<Card title="Apply Command" icon="rocket">
 		Apply environment variables from configs, sheets, and .env files.

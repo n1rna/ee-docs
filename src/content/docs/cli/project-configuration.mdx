@@ -9,9 +9,10 @@ The `.ee` file is the heart of project configuration in ee-cli. It's a JSON-base
 
 The `.ee` file is a project configuration file that lives at the root of your project directory. It contains:
 
-- **Project metadata** (name, remote URL)
+- **Project metadata** (name)
 - **Schema definition** (inline or by reference)
 - **Environment definitions** (how environments are composed)
+- **Origin configurations** (GitHub, Cloudflare for secret pushing)
 
 Unlike traditional environment management tools that rely on centralized databases or remote APIs, ee-cli uses the `.ee` file to make your project configuration:
 - **Portable**: The entire configuration travels with your codebase
@@ -25,7 +26,6 @@ Unlike traditional environment management tools that rely on centralized databas
 ```json
 {
   "project": "my-web-app",
-  "remote": "https://api.ee.dev",
   "schema": {
     "ref": "local://web-service"
   },
@@ -35,6 +35,13 @@ Unlike traditional environment management tools that rely on centralized databas
     },
     "production": {
       "sheets": [".env.production"]
+    }
+  },
+  "origins": {
+    "github": {
+      "type": "github",
+      "mode": "bundled",
+      "secret_name": "ENV_PRODUCTION"
     }
   }
 }
@@ -48,15 +55,6 @@ The unique name or identifier for your project.
 ```json
 {
   "project": "my-api-service"
-}
-```
-
-#### `remote` (optional)
-The remote API endpoint URL for synchronization with a remote ee server.
-
-```json
-{
-  "remote": "https://ee.example.com"
 }
 ```
 
@@ -91,6 +89,25 @@ Defines the available environments and how they're composed from config sheets.
 }
 ```
 
+#### `origins` (optional)
+Configures remote origins for pushing secrets. See [Origins (Push Secrets)](/cli/origins) for full documentation.
+
+```json
+{
+  "origins": {
+    "github": {
+      "type": "github",
+      "mode": "bundled",
+      "secret_name": "ENV_PRODUCTION"
+    },
+    "cloudflare": {
+      "type": "cloudflare",
+      "worker": "my-worker"
+    }
+  }
+}
+```
+
 ## Schema Configuration
 
 The schema section defines the structure and validation rules for your environment variables.
@@ -108,18 +125,6 @@ Reference a locally stored schema:
 ```
 
 This references a schema named "web-service" from your local ee storage (`~/.ee/schemas/`).
-
-### Schema by Reference (Remote)
-
-Reference a schema from a remote server:
-
-```json
-{
-  "schema": {
-    "ref": "remote://schemas/web-service"
-  }
-}
-```
 
 ### Inline Schema
 
@@ -231,14 +236,7 @@ Environments can reference different types of sheets:
 }
 ```
 
-#### 3. Remote Config Sheets
-```json
-{
-  "sheets": ["remote://configs/shared", "remote://configs/production"]
-}
-```
-
-#### 4. Inline Values
+#### 3. Inline Values
 ```json
 {
   "sheets": [
@@ -265,8 +263,7 @@ Combine different sheet types for flexibility:
         {                               // Inline overrides
           "FEATURE_FLAG_NEW_UI": "true",
           "DEBUG": "false"
-        },
-        "remote://configs/staging"      // Remote config sheet
+        }
       ]
     }
   }
@@ -324,13 +321,6 @@ ee init my-api --schema web-service
 ee init my-api \
   --var "PORT:number:Server port:false:3000" \
   --var "NODE_ENV:string:Environment:true:development"
-```
-
-### With Remote URL
-
-```bash
-# Initialize with remote synchronization
-ee init my-api --remote https://api.ee.dev
 ```
 
 ### Force Overwrite
@@ -464,7 +454,6 @@ Final result:        PORT=3000, DEBUG=false, DB_HOST=prod.example.com, DB_PASSWO
       "sheets": [
         ".env.defaults",           // Default values
         "local://team-config",     // Team-wide config
-        "remote://staging-config", // Remote staging config
         ".env.local"               // Local overrides
       ]
     }
@@ -472,59 +461,22 @@ Final result:        PORT=3000, DEBUG=false, DB_HOST=prod.example.com, DB_PASSWO
 }
 ```
 
-## Remote Synchronization
+## Pushing Secrets to Origins
 
-When a remote URL is configured, you can sync schemas and config sheets.
-
-### Push Local to Remote
+When origins are configured, you can push environment secrets to GitHub or Cloudflare.
 
 ```bash
-# Push all entities
-ee push
+# Push production secrets to GitHub
+ee push github production
 
-# Push only schemas
-ee push --schemas
+# Push to the only configured origin
+ee push production
 
-# Push only config sheets
-ee push --sheets
-
-# Dry run to see what would be pushed
-ee push --dry-run
+# Preview what would be pushed
+ee push production --dry-run
 ```
 
-### Pull Remote to Local
-
-```bash
-# Pull all entities
-ee pull
-
-# Pull only schemas
-ee pull --schemas
-
-# Pull only config sheets
-ee pull --sheets
-
-# Dry run to see what would be pulled
-ee pull --dry-run
-```
-
-### Sync Workflow
-
-```bash
-# 1. Configure remote in .ee file
-{
-  "remote": "https://api.ee.dev"
-}
-
-# 2. Pull shared schemas and config sheets
-ee pull
-
-# 3. Work locally
-ee apply development -- npm start
-
-# 4. Push changes back
-ee push
-```
+For full documentation on origins, see [Origins (Push Secrets)](/cli/origins).
 
 ## Examples
 
@@ -533,7 +485,6 @@ ee push
 ```json
 {
   "project": "my-web-app",
-  "remote": "https://api.ee.dev",
   "schema": {
     "ref": "local://web-service"
   },
@@ -542,10 +493,16 @@ ee push
       "sheets": [".env", ".env.development", ".env.local"]
     },
     "staging": {
-      "sheets": [".env", ".env.staging", "remote://staging-secrets"]
+      "sheets": [".env", ".env.staging"]
     },
     "production": {
-      "sheets": [".env", ".env.production", "remote://prod-secrets"]
+      "sheets": [".env", ".env.production"]
+    }
+  },
+  "origins": {
+    "github": {
+      "type": "github",
+      "mode": "bundled"
     }
   }
 }
@@ -578,7 +535,7 @@ ee push
     "production": {
       "sheets": [
         "local://shared-prod-config",
-        "remote://user-service-prod"
+        ".env.production"
       ]
     }
   }
@@ -608,8 +565,7 @@ ee push
     "production": {
       "sheets": [
         ".env.shared",
-        "remote://production-base",
-        "remote://production-secrets"
+        ".env.production"
       ]
     }
   }
@@ -697,9 +653,6 @@ cat .ee | jq '.'
 ```bash
 # List available local schemas
 ee schema list
-
-# Pull schemas from remote
-ee pull --schemas
 ```
 
 ### Environment Not Found
@@ -721,12 +674,12 @@ ee apply development --dry-run
 # Check if referenced sheets exist:
 # - .env files: ls -la .env*
 # - Local sheets: ee sheet list
-# - Remote sheets: ee pull --sheets
 ```
 
 ## Next Steps
 
 - Learn about [Schemas](/cli/schemas) for defining variable structures
 - Explore [Config Sheets](/cli/config-sheets) for managing configuration values
+- Set up [Origins](/cli/origins) for pushing secrets to GitHub or Cloudflare
 - Understand the [Apply Command](/cli/apply) for using environments
-- Read about the [Root Command](/cli/root) for environment inspection
+- Read about the [Root Command](/cli/root-command) for environment inspection

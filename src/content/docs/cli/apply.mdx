@@ -109,7 +109,7 @@ Given this `.ee` configuration:
       "sheets": [
         ".env.base",                 // 1. Base config
         "local://prod-config",       // 2. Production overrides
-        "remote://prod-secrets"      // 3. Secret values
+        "local://prod-secrets"       // 3. Secret values
       ]
     }
   }
@@ -131,7 +131,7 @@ When you run `ee apply production`:
    NODE_ENV=production (new)
    ```
 
-3. **Merge remote://prod-secrets**:
+3. **Merge local://prod-secrets**:
    ```
    PORT=3000              (from .env.base)
    DEBUG=false            (from prod-config)
@@ -445,16 +445,13 @@ Each starts a new shell with that environment loaded. Exit to return to original
     "development": {
       "sheets": [
         ".env.development",        // Local config
-        "remote://dev-secrets"     // Remote secrets
+        ".env.development.local"   // Local secrets (gitignored)
       ]
     }
   }
 }
 
-# Pull remote secrets first
-ee pull --sheets
-
-# Apply with remote secrets
+# Apply with local secrets
 ee apply development -- npm start
 ```
 
@@ -522,8 +519,6 @@ Error: failed to resolve sheet reference: config sheet 'dev-config' not found
 **Fix**: Create the missing sheet or pull from remote:
 ```bash
 ee sheet create dev-config --schema web-service
-# or
-ee pull --sheets
 ```
 
 ### Validation Errors
@@ -562,8 +557,8 @@ ee apply /correct/path/.env.production
      "environments": {
        "development": { "sheets": [".env.development"] },
        "test": { "sheets": [".env.test"] },
-       "staging": { "sheets": [".env", "remote://staging-secrets"] },
-       "production": { "sheets": [".env", "remote://prod-secrets"] }
+       "staging": { "sheets": [".env", ".env.staging"] },
+       "production": { "sheets": [".env", ".env.production"] }
      }
    }
    ```
@@ -600,7 +595,7 @@ ee apply /correct/path/.env.production
        "production": {
          "sheets": [
            ".env.production",          // Safe to commit (no secrets)
-           "remote://prod-secrets"     // Secrets on remote server
+           "local://prod-secrets"      // Secrets from local config sheet
          ]
        }
      }
@@ -639,10 +634,7 @@ ee apply /correct/path/.env.production
    ```
    ```
 
-3. **Use consistent schemas** across team:
-   ```bash
-   ee pull --schemas
-   ```
+3. **Use consistent schemas** across team — share `.ee` files in version control
 
 ## Advanced Usage
 
@@ -745,9 +737,6 @@ cat .ee | jq '.environments.development'
 
 # List available sheets
 ee sheet list
-
-# Pull from remote if needed
-ee pull --sheets
 ```
 
 ## Next Steps

@@ -308,48 +308,49 @@ ee --format json
 ee --filter '*KEY*,*SECRET*,*TOKEN*' --mask
 ```
 
-## Working with Remote Schemas and Sheets
+## Push Secrets to GitHub or Cloudflare
 
-### Configure Remote URL
+You can push your environment secrets directly to GitHub or Cloudflare Workers using the `ee push` command.
 
-Edit your `.ee` file to add a remote URL:
+### Configure an Origin
+
+Edit your `.ee` file to add an origin:
 
 ```json
 {
   "project": "my-web-app",
-  "remote": "https://api.ee.dev",
   "schema": {
     "ref": "local://web-service"
   },
-  "environments": { ... }
+  "environments": {
+    "production": {
+      "sheets": [".env.production"]
+    }
+  },
+  "origins": {
+    "github": {
+      "type": "github",
+      "mode": "bundled",
+      "secret_name": "ENV_PRODUCTION"
+    }
+  }
 }
 ```
 
-### Pull Shared Resources
+### Push Your Secrets
 
 ```bash
-# Pull schemas from remote
-ee pull --schemas
+# Make sure you're logged in
+ee auth gh
 
-# Pull config sheets from remote
-ee pull --sheets
+# Preview what will be pushed
+ee push production --dry-run
 
-# Pull everything
-ee pull
+# Push production secrets to GitHub
+ee push production
 ```
 
-### Push Your Changes
-
-```bash
-# Push schemas to remote
-ee push --schemas
-
-# Push config sheets to remote
-ee push --sheets
-
-# Push everything
-ee push
-```
+This pushes your `.env.production` values as a single GitHub secret called `ENV_PRODUCTION`, ready to be used with [ee-action](https://github.com/n1rna/ee-action) in your CI/CD workflows.
 
 ## Common Workflows
 
@@ -383,17 +384,14 @@ ee apply production --dry-run --format dotenv > .env.production
 ee apply production -- ./deploy.sh
 ```
 
-### Team Collaboration
+### Secrets Deployment
 
 ```bash
-# 1. Pull latest schemas and sheets
-ee pull
+# 1. Configure origins in .ee file
+# 2. Push secrets to GitHub
+ee push github production
 
-# 2. Work on your feature
-ee apply development -- npm start
-
-# 3. Share your schema changes
-ee push --schemas
+# 3. Use ee-action in CI/CD to hydrate secrets
 ```
 
 ## Quick Reference
@@ -403,7 +401,6 @@ ee push --schemas
 ee init                              # Initialize project in current directory
 ee init my-project                   # Initialize with specific name
 ee init --schema web-service         # Initialize with existing schema
-ee init --remote https://api.ee.dev  # Initialize with remote URL
 ```
 
 ### Schema Management
@@ -441,14 +438,13 @@ ee --format json                     # Output as JSON
 ee --mask                            # Mask sensitive values
 ```
 
-### Remote Sync
+### Push Secrets
 ```bash
-ee pull                              # Pull all from remote
-ee pull --schemas                    # Pull only schemas
-ee pull --sheets                     # Pull only sheets
-ee push                              # Push all to remote
-ee push --schemas                    # Push only schemas
-ee push --sheets                     # Push only sheets
+ee auth                              # Check origin tool auth status
+ee push production                   # Push to the only configured origin
+ee push github production            # Push to a specific origin
+ee push production --dry-run         # Preview what would be pushed
+ee push production --mode individual # Override push mode
 ```
 
 ## Next Steps
@@ -467,4 +463,4 @@ Now that you understand the basics, dive deeper into:
 2. **Never commit secrets**: Keep sensitive `.env` files in `.gitignore`
 3. **Use sheet stacking**: Combine base config with environment-specific overrides
 4. **Leverage schemas**: Define validation rules to catch errors early
-5. **Remote sync for teams**: Use push/pull for sharing schemas and config sheets
+5. **Push secrets to origins**: Use `ee push` to deploy secrets to GitHub or Cloudflare

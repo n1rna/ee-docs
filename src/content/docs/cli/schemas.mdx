@@ -321,17 +321,6 @@ Schemas can be referenced in different ways:
 
 References a schema named "web-service" from local storage.
 
-### Remote Reference
-
-```json
-{
-  "schema": {
-    "ref": "remote://schemas/web-service"
-  }
-}
-```
-
-References a schema from the remote server.
 
 ### Schema ID Reference
 
@@ -345,45 +334,6 @@ References a schema from the remote server.
 
 References a schema by its unique ID (UUID).
 
-## Remote Synchronization
-
-Sync schemas between local storage and remote server.
-
-### Push Local Schemas
-
-```bash
-# Push all local schemas to remote
-ee push --schemas
-
-# Dry run to see what would be pushed
-ee push --schemas --dry-run
-```
-
-### Pull Remote Schemas
-
-```bash
-# Pull all remote schemas to local
-ee pull --schemas
-
-# Dry run to see what would be pulled
-ee pull --schemas --dry-run
-```
-
-### Sync Workflow
-
-```bash
-# 1. Pull latest schemas from remote
-ee pull --schemas
-
-# 2. Create or modify schemas locally
-ee schema create my-new-schema --variable "VAR:string:Description:true"
-
-# 3. Push changes back to remote
-ee push --schemas
-
-# 4. Team members pull to get updates
-ee pull --schemas
-```
 
 ## Schema Validation
 
@@ -665,9 +615,6 @@ variables:
 # List available schemas
 ee schema list
 
-# Pull from remote if configured
-ee pull --schemas
-
 # Create the schema
 ee schema create my-schema
 ```
@@ -694,22 +641,9 @@ ee schema list
 ee schema show my-schema --format json
 ```
 
-### Remote Sync Errors
-
-```bash
-# Check remote URL in .ee file
-cat .ee | jq '.remote'
-
-# Test connectivity
-ee pull --schemas --dry-run
-
-# Check for conflicts
-ee push --schemas --dry-run
-```
-
 ## Next Steps
 
 - Learn about [Config Sheets](/cli/config-sheets) for managing values
 - Explore [Project Configuration](/cli/project-configuration) for using schemas
+- Set up [Origins](/cli/origins) for pushing secrets to GitHub or Cloudflare
 - Understand the [Apply Command](/cli/apply) for applying validated environments
-- Read about [Remote Synchronization](/cli/remote-sync) for team collaboration

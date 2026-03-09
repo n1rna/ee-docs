@@ -1,0 +1,422 @@
+---
+title: Origins (Push Secrets)
+description: Push environment secrets to GitHub and Cloudflare using the ee push command
+---
+
+Origins let you push environment secrets from your local `.env` files to external services like **GitHub** and **Cloudflare Workers**. Instead of managing a custom backend, ee uses the tools you already have — the `gh` CLI and `wrangler` CLI.
+
+## Overview
+
+The `ee push` command reads your local environment configuration (resolved from `.env` files and config sheets in your `.ee` project) and pushes the secrets to a configured origin.
+
+```bash
+# Push production secrets to GitHub
+ee push github production
+
+# Push to the only configured origin
+ee push production
+
+# Preview what would be pushed
+ee push production --dry-run
+```
+
+## Prerequisites
+
+Origins rely on external CLI tools that must be installed and authenticated:
+
+| Origin | CLI Tool | Install | Auth Command |
+|--------|----------|---------|--------------|
+| GitHub | `gh` | [cli.github.com](https://cli.github.com) | `gh auth login` |
+| Cloudflare | `wrangler` | [wrangler docs](https://developers.cloudflare.com/workers/wrangler/install-and-update/) | `wrangler login` |
+
+Check your authentication status:
+
+```bash
+# Check all configured origin tools
+ee auth
+
+# Check a specific tool
+ee auth gh
+ee auth wrangler
+```
+
+## Configuration
+
+Origins are configured in the `origins` section of your `.ee` file. Each origin has a name (used as the CLI argument) and a type-specific configuration.
+
+### GitHub Origin
+
+```json
+{
+  "project": "my-app",
+  "schema": { ... },
+  "environments": {
+    "production": {
+      "sheets": [".env.production"]
+    }
+  },
+  "origins": {
+    "github": {
+      "type": "github",
+      "mode": "bundled",
+      "secret_name": "ENV_PRODUCTION",
+      "repo": "myorg/my-app",
+      "environment": "production"
+    }
+  }
+}
+```
+
+#### GitHub Fields
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `type` | Yes | — | Must be `"github"` |
+| `mode` | No | `"bundled"` | Push mode: `"bundled"` or `"individual"` |
+| `secret_name` | No | `"ENV_<ENV>"` | Secret name for bundled mode |
+| `repo` | No | Current repo | Repository in `owner/repo` format |
+| `environment` | No | — | GitHub environment name for environment-scoped secrets |
+
+### Cloudflare Origin
+
+```json
+{
+  "origins": {
+    "cloudflare": {
+      "type": "cloudflare",
+      "mode": "individual",
+      "worker": "my-worker"
+    }
+  }
+}
+```
+
+#### Cloudflare Fields
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `type` | Yes | — | Must be `"cloudflare"` |
+| `mode` | No | `"individual"` | Push mode: `"bundled"` or `"individual"` |
+| `worker` | Yes | — | Cloudflare Worker name |
+
+### Multiple Origins
+
+You can configure multiple origins and push to them selectively:
+
+```json
+{
+  "origins": {
+    "github": {
+      "type": "github",
+      "mode": "bundled",
+      "secret_name": "ENV_SECRETS"
+    },
+    "cloudflare": {
+      "type": "cloudflare",
+      "worker": "my-api-worker"
+    }
+  }
+}
+```
+
+```bash
+# Push to GitHub
+ee push github production
+
+# Push to Cloudflare
+ee push cloudflare production
+```
+
+When only one origin is configured, you can omit the origin name:
+
+```bash
+ee push production
+```
+
+## Push Modes
+
+### Bundled Mode
+
+Pushes all secrets as a single multi-line `KEY=VALUE` secret. This is the default for GitHub and is compatible with the [ee-action](https://github.com/n1rna/ee-action) GitHub Action.
+
+```bash
+# The secret value will contain:
+# DATABASE_URL=postgres://prod:5432/myapp
+# API_KEY=secret123
+# PORT=8080
+```
+
+The secret name defaults to `ENV_<ENVIRONMENT>` (e.g., `ENV_PRODUCTION`) or can be set via `secret_name` in the config.
+
+**When to use**: When you want to manage all environment variables as a single unit and use ee-action to hydrate them in CI/CD.
+
+### Individual Mode
+
+Pushes each key-value pair as a separate secret. This is the default for Cloudflare.
+
+```bash
+# Creates separate secrets:
+# DATABASE_URL = postgres://prod:5432/myapp
+# API_KEY = secret123
+# PORT = 8080
+```
+
+**When to use**: When you need fine-grained access to individual secrets, or when the platform expects separate secret entries.
+
+### Override Mode
+
+You can override the configured mode per-push:
+
+```bash
+# Push individually even though config says bundled
+ee push github production --mode individual
+
+# Push as bundle even though config says individual
+ee push cloudflare production --mode bundled
+```
+
+## Push Command
+
+### Usage
+
+```
+ee push [origin] <environment> [flags]
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `origin` | No* | Origin name from config. *Required if multiple origins configured. |
+| `environment` | Yes | Environment name from `.ee` file |
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Preview what would be pushed without executing |
+| `--mode` | Override push mode (`bundled` or `individual`) |
+| `--quiet` | Suppress non-error output |
+
+### Examples
+
+```bash
+# Push production to the only configured origin
+ee push production
+
+# Push to a specific origin
+ee push github production
+
+# Dry run to preview
+ee push production --dry-run
+
+# Override mode
+ee push github production --mode individual
+
+# Quiet mode for scripts
+ee push production --quiet
+```
+
+## Integration with ee-action
+
+The **bundled** push mode is designed to work with [ee-action](https://github.com/n1rna/ee-action), a GitHub Action that reads a bundled secret and hydrates it into an `.env` file during CI/CD workflows.
+
+### Workflow
+
+1. **Push secrets** from your local environment to GitHub:
+   ```bash
+   ee push github production
+   ```
+
+2. **Use ee-action** in your GitHub workflow to read the secret:
+   ```yaml
+   - uses: n1rna/ee-action@v1
+     with:
+       environment: production
+       config_path: .ee
+       env_file: .env
+       gh_secret: ${{ secrets.ENV_PRODUCTION }}
+   ```
+
+3. ee-action hydrates the bundled secret through the ee CLI's schema validation, producing a validated `.env` file for your deployment.
+
+### Example .ee Config for ee-action
+
+```json
+{
+  "project": "my-app",
+  "schema": {
+    "variables": {
+      "DATABASE_URL": { "name": "DATABASE_URL", "type": "url", "required": true },
+      "API_KEY": { "name": "API_KEY", "type": "string", "required": true },
+      "PORT": { "name": "PORT", "type": "number", "default": "3000" }
+    }
+  },
+  "environments": {
+    "production": {
+      "sheets": [".env.production"]
+    }
+  },
+  "origins": {
+    "github": {
+      "type": "github",
+      "mode": "bundled",
+      "secret_name": "ENV_PRODUCTION"
+    }
+  }
+}
+```
+
+## Auth Command
+
+The `ee auth` command checks whether the required CLI tools are installed and authenticated.
+
+```bash
+# Check all tools used by configured origins
+ee auth
+
+# Check a specific tool
+ee auth gh
+ee auth wrangler
+```
+
+If a tool is not installed or not authenticated, ee will show the appropriate install/login instructions.
+
+## Common Patterns
+
+### GitHub Secrets per Environment
+
+```json
+{
+  "environments": {
+    "staging": { "sheets": [".env.staging"] },
+    "production": { "sheets": [".env.production"] }
+  },
+  "origins": {
+    "github": {
+      "type": "github",
+      "mode": "bundled",
+      "environment": "production"
+    }
+  }
+}
+```
+
+```bash
+# Push staging secrets
+ee push github staging
+
+# Push production secrets
+ee push github production
+```
+
+The `secret_name` defaults to `ENV_STAGING` and `ENV_PRODUCTION` respectively (derived from the environment name).
+
+### Cloudflare Workers
+
+```json
+{
+  "origins": {
+    "cloudflare": {
+      "type": "cloudflare",
+      "worker": "my-api",
+      "mode": "individual"
+    }
+  }
+}
+```
+
+```bash
+ee push cloudflare production
+```
+
+This calls `wrangler secret put <KEY>` for each secret, piping the value via stdin.
+
+### Dual Push (GitHub + Cloudflare)
+
+```json
+{
+  "origins": {
+    "github": {
+      "type": "github",
+      "mode": "bundled",
+      "secret_name": "ENV_PRODUCTION"
+    },
+    "cf": {
+      "type": "cloudflare",
+      "worker": "my-api"
+    }
+  }
+}
+```
+
+```bash
+# Push to both
+ee push github production
+ee push cf production
+```
+
+## Limitations
+
+- **Secrets are write-only**: GitHub and Cloudflare do not allow reading secret values back. `ee push` is a one-way operation.
+- **No pull support**: You cannot pull secrets from these origins. Keep your local `.env` files as the source of truth.
+- **Tool authentication**: You must authenticate with `gh` and `wrangler` separately before using ee push.
+
+## Troubleshooting
+
+### Tool Not Found
+
+```
+Error: 'gh' CLI not found on PATH. Install it from https://cli.github.com
+```
+
+Install the required CLI tool and ensure it's on your PATH.
+
+### Not Authenticated
+
+```
+Error: 'gh' is not authenticated. Run 'gh auth login' first.
+```
+
+Run the authentication command for the tool:
+```bash
+gh auth login
+# or
+wrangler login
+```
+
+### No Origins Configured
+
+```
+Error: no origins configured in .ee file
+```
+
+Add an `origins` section to your `.ee` file. See [Configuration](#configuration) above.
+
+### Multiple Origins Without Specifying
+
+```
+Error: multiple origins configured — specify which one: ee push <origin> production
+```
+
+When multiple origins are configured, you must specify the origin name:
+```bash
+ee push github production
+```
+
+### Environment Not Found
+
+```
+Error: environment "staging" not found in project
+```
+
+Check your `.ee` file's `environments` section:
+```bash
+cat .ee | jq '.environments | keys'
+```
+
+## Next Steps
+
+- Learn about [Project Configuration](/cli/project-configuration) for setting up your `.ee` file
+- Explore [Config Sheets](/cli/config-sheets) for managing configuration values
+- Understand the [Apply Command](/cli/apply) for applying environments locally

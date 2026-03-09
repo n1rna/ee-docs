@@ -335,17 +335,6 @@ Config sheets are referenced in `.ee` project configurations.
 }
 ```
 
-### Reference with remote:// Prefix
-
-```json
-{
-  "environments": {
-    "production": {
-      "sheets": ["remote://configs/prod-base", "remote://secrets/prod"]
-    }
-  }
-}
-```
 
 ## Sheet Stacking in Environments
 
@@ -388,8 +377,7 @@ Combine config sheets with .env files:
     "staging": {
       "sheets": [
         ".env.base",               // .env file
-        "local://shared-config",   // Local config sheet
-        "remote://staging-secrets" // Remote config sheet
+        "local://shared-config"    // Local config sheet
       ]
     }
   }
@@ -416,45 +404,6 @@ Add inline values at the end to override everything:
 }
 ```
 
-## Remote Synchronization
-
-Sync config sheets between local storage and remote server.
-
-### Push Local Sheets
-
-```bash
-# Push all local config sheets to remote
-ee push --sheets
-
-# Dry run to see what would be pushed
-ee push --sheets --dry-run
-```
-
-### Pull Remote Sheets
-
-```bash
-# Pull all remote config sheets to local
-ee pull --sheets
-
-# Dry run to see what would be pulled
-ee pull --sheets --dry-run
-```
-
-### Sync Workflow
-
-```bash
-# 1. Pull latest config sheets from remote
-ee pull --sheets
-
-# 2. Create or modify sheets locally
-ee sheet create my-new-config --schema web-service --value PORT=3000
-
-# 3. Push changes back to remote
-ee push --sheets
-
-# 4. Team members pull to get updates
-ee pull --sheets
-```
 
 ## Common Patterns
 
@@ -551,7 +500,7 @@ ee sheet create prod-secrets \
     "production": {
       "sheets": [
         "local://public-prod-config",
-        "remote://secrets/production"
+        ".env.production.local"
       ]
     }
   }
@@ -680,13 +629,13 @@ ee sheet edit my-config
 
 3. **Production**:
    ```bash
-   # Create prod config on remote (controlled access)
+   # Create prod config locally
    ee sheet create prod-config --schema web-service
    ee sheet set prod-config DATABASE_URL postgres://prod:5432/db
    ee sheet set prod-config API_KEY secret123
 
-   # Push to remote
-   ee push --sheets
+   # Push secrets to GitHub or Cloudflare
+   ee push production
    ```
 
 ## Example Config Sheets
@@ -745,9 +694,6 @@ ee sheet create shared-base \
 # List available config sheets
 ee sheet list
 
-# Pull from remote if configured
-ee pull --sheets
-
 # Create the config sheet
 ee sheet create my-config --schema my-schema
 ```
@@ -764,19 +710,6 @@ ee schema show my-schema
 # - Invalid URL/email format
 ```
 
-### Remote Sync Errors
-
-```bash
-# Check remote URL in .ee file
-cat .ee | jq '.remote'
-
-# Test connectivity
-ee pull --sheets --dry-run
-
-# Check for conflicts (same name, different values)
-ee push --sheets --dry-run
-```
-
 ### Sheet Stacking Issues
 
 ```bash
@@ -789,12 +722,11 @@ cat .ee | jq '.environments.development.sheets'
 # Verify each sheet exists:
 # - For .env files: ls -la .env*
 # - For local sheets: ee sheet list
-# - For remote sheets: ee pull --sheets --dry-run
 ```
 
 ## Next Steps
 
 - Learn about [Schemas](/cli/schemas) for defining validation rules
 - Explore [Project Configuration](/cli/project-configuration) for using config sheets
+- Set up [Origins](/cli/origins) for pushing secrets to GitHub or Cloudflare
 - Understand the [Apply Command](/cli/apply) for applying config sheets to environments
-- Read about [Remote Synchronization](/cli/remote-sync) for team collaboration
