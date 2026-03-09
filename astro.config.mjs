@@ -40,6 +40,7 @@ export default defineConfig({
 						{ label: "Schemas", slug: "cli/schemas" },
 						{ label: "Origins (Push Secrets)", slug: "cli/origins" },
 						{ label: "Apply Command", slug: "cli/apply" },
+						{ label: "Hydrate Command", slug: "cli/hydrate" },
 						{ label: "Root Command", slug: "cli/root-command" },
 					],
 				},

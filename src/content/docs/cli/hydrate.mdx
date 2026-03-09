@@ -1,0 +1,151 @@
+---
+title: Hydrate Command
+description: Generate environment files by resolving schema variables from the current shell
+---
+
+The `ee hydrate` command generates environment files by resolving schema variables against your current shell environment. For each variable in your project schema, it checks the shell first, then falls back to schema defaults.
+
+## Basic Usage
+
+```bash
+# Generate .env for the development environment (prints to stdout)
+ee hydrate development
+
+# Write to a file
+ee hydrate development -o .env
+
+# Output as JSON
+ee hydrate development -f json
+
+# Output as YAML to a file
+ee hydrate development -f yaml -o config.yaml
+```
+
+## How It Works
+
+For each variable defined in the project schema, `hydrate` resolves values in this order:
+
+1. **Shell environment** — if the variable is set in your current shell, use that value
+2. **Schema default** — fall back to the default value from the schema
+3. **Empty** — if neither exists, the variable is left empty (a warning is shown for required variables)
+
+This makes `hydrate` useful for generating deployment-ready `.env` files from a combination of your local environment and schema defaults.
+
+## Flags
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--output` | `-o` | *(stdout)* | Write output to file instead of stdout |
+| `--format` | `-f` | `dotenv` | Output format: `dotenv`, `json`, `yaml` |
+
+## Output Formats
+
+### DotEnv (default)
+
+```bash
+ee hydrate production
+```
+
+Output:
+```
+DATABASE_URL="postgres://prod-host:5432/myapp"
+DEBUG="false"
+PORT="8080"
+```
+
+### JSON
+
+```bash
+ee hydrate production -f json
+```
+
+Output:
+```json
+{
+  "DATABASE_URL": "postgres://prod-host:5432/myapp",
+  "DEBUG": "false",
+  "PORT": "8080"
+}
+```
+
+### YAML
+
+```bash
+ee hydrate production -f yaml
+```
+
+Output:
+```yaml
+DATABASE_URL: postgres://prod-host:5432/myapp
+DEBUG: "false"
+PORT: "8080"
+```
+
+## Practical Examples
+
+### Generate a .env File for Deployment
+
+```bash
+# Set production values in your shell
+export DATABASE_URL=postgres://prod-host:5432/myapp
+export API_KEY=sk-prod-abc123
+
+# Generate .env file — picks up shell values, uses schema defaults for the rest
+ee hydrate production -o .env.production
+```
+
+### Generate Config for Docker
+
+```bash
+# Generate .env for docker-compose
+ee hydrate production -o .env
+docker-compose up
+
+# Or generate JSON for application config
+ee hydrate production -f json -o config.json
+```
+
+### Generate YAML Config
+
+```bash
+# Generate YAML configuration file
+ee hydrate staging -f yaml -o config.yaml
+```
+
+### Preview Without Writing
+
+```bash
+# Print to stdout to inspect before writing
+ee hydrate development
+
+# Pipe to other tools
+ee hydrate production -f json | jq '.DATABASE_URL'
+```
+
+### CI/CD Pipeline
+
+```bash
+# In CI, shell env vars are set by the CI system
+# Hydrate fills in any gaps with schema defaults
+ee hydrate production -o .env
+
+# Use the generated .env for deployment
+docker build --env-file .env -t myapp .
+```
+
+## Requirements
+
+- Must be in a project directory with a `.ee` file
+- The `.ee` file must have a schema defined (inline or file reference)
+- The environment name must exist in the project configuration
+
+## Comparison with Apply
+
+| | `ee hydrate` | `ee apply --dry-run` |
+|---|---|---|
+| **Source** | Current shell environment + schema defaults | `.env` files defined in project config |
+| **Schema required** | Yes | No |
+| **Use case** | Generate `.env` from live environment | Preview what's in your `.env` files |
+| **Output formats** | dotenv, json, yaml | env, dotenv, json |
+
+Use `hydrate` when you want to capture your current shell state into a file based on the schema. Use `apply --dry-run` when you want to see what variables are defined in your `.env` files.
