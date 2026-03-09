@@ -98,91 +98,134 @@ check_version_exists() {
     fi
 }
 
-# Download and install
-install_binary() {
-    local tmp_dir="/tmp/ee-install-$$"
-    local binary_name="${BINARY_NAME}-${PLATFORM}${BINARY_SUFFIX}"
-    local download_url="https://github.com/$REPO/releases/download/$VERSION/$binary_name"
+# Check if a directory is in the current PATH
+is_in_path() {
+    case ":$PATH:" in
+        *":$1:"*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
-    log "Downloading ee $VERSION for $PLATFORM..."
-    debug "Download URL: $download_url"
+# Find the best user-writable install directory
+# Priority: user-writable directories already in PATH, then well-known user dirs
+find_install_dir() {
+    # Well-known user-level bin directories, in order of preference
+    local candidates="
+        $HOME/.local/bin
+        $HOME/bin
+        $HOME/.cargo/bin
+        $HOME/go/bin
+        $HOME/.local/share/bin
+    "
 
-    # Create temporary directory
-    mkdir -p "$tmp_dir"
-    trap 'rm -rf "$tmp_dir"' EXIT
-
-    # Download binary
-    if command -v curl >/dev/null 2>&1; then
-        if ! curl -sL "$download_url" -o "$tmp_dir/$BINARY_NAME$BINARY_SUFFIX"; then
-            error "Failed to download $binary_name"
-            exit 1
+    # 1. Check if any well-known user directory is already in PATH and writable
+    for dir in $candidates; do
+        if is_in_path "$dir" && [ -d "$dir" ] && [ -w "$dir" ]; then
+            debug "Found user-writable directory in PATH: $dir"
+            echo "$dir"
+            return
         fi
-    elif command -v wget >/dev/null 2>&1; then
-        if ! wget -q "$download_url" -O "$tmp_dir/$BINARY_NAME$BINARY_SUFFIX"; then
-            error "Failed to download $binary_name"
-            exit 1
-        fi
-    fi
+    done
 
-    # Make binary executable
-    chmod +x "$tmp_dir/$BINARY_NAME$BINARY_SUFFIX"
+    # 2. Scan PATH for any other user-writable directory (under $HOME)
+    local IFS=':'
+    for dir in $PATH; do
+        case "$dir" in
+            "$HOME"*)
+                if [ -d "$dir" ] && [ -w "$dir" ]; then
+                    debug "Found user-writable directory in PATH: $dir"
+                    echo "$dir"
+                    return
+                fi
+                ;;
+        esac
+    done
+    unset IFS
 
-    # Determine install location
-    local install_dir
+    # 3. Check /usr/local/bin if writable (common on macOS)
     if [ -w "/usr/local/bin" ]; then
-        install_dir="/usr/local/bin"
-    elif [ -d "$HOME/.local/bin" ]; then
-        install_dir="$HOME/.local/bin"
-        mkdir -p "$install_dir"
-    elif [ -d "$HOME/bin" ]; then
-        install_dir="$HOME/bin"
-    else
-        install_dir="$HOME/.local/bin"
-        mkdir -p "$install_dir"
-        warn "Created directory $install_dir - make sure it's in your PATH"
+        debug "Using writable /usr/local/bin"
+        echo "/usr/local/bin"
+        return
     fi
 
-    # Install binary
-    log "Installing to $install_dir/$BINARY_NAME$BINARY_SUFFIX..."
+    # 4. Create ~/.local/bin (XDG standard, most shells source it)
+    local fallback="$HOME/.local/bin"
+    mkdir -p "$fallback"
 
-    if ! cp "$tmp_dir/$BINARY_NAME$BINARY_SUFFIX" "$install_dir/$BINARY_NAME$BINARY_SUFFIX"; then
-        error "Failed to install binary to $install_dir"
-        warn "You may need to run with sudo or choose a different install location"
-        exit 1
+    # Check if it's already in PATH after creation
+    if is_in_path "$fallback"; then
+        debug "Created $fallback (already in PATH)"
+    else
+        debug "Created $fallback (not yet in PATH)"
     fi
 
-    # Verify installation
-    if "$install_dir/$BINARY_NAME$BINARY_SUFFIX" --version >/dev/null 2>&1; then
-        log "✅ ee $VERSION installed successfully!"
-        log "📍 Location: $install_dir/$BINARY_NAME$BINARY_SUFFIX"
+    echo "$fallback"
+}
 
-        # Check if binary is in PATH
-        if command -v "$BINARY_NAME" >/dev/null 2>&1; then
-            log "🎉 You can now use 'ee' from anywhere!"
-        else
-            warn "⚠️  $install_dir is not in your PATH"
-            warn "Add this to your shell profile:"
-            warn "export PATH=\"$install_dir:\$PATH\""
-        fi
+# Detect the user's shell profile file
+detect_shell_profile() {
+    local shell_name
+    shell_name=$(basename "${SHELL:-/bin/sh}")
 
-        log ""
-        log "Get started with: ee --help"
-        log "Documentation: https://github.com/$REPO"
+    case "$shell_name" in
+        zsh)
+            if [ -f "$HOME/.zshrc" ]; then
+                echo "$HOME/.zshrc"
+            else
+                echo "$HOME/.zprofile"
+            fi
+            ;;
+        bash)
+            if [ -f "$HOME/.bashrc" ]; then
+                echo "$HOME/.bashrc"
+            elif [ -f "$HOME/.bash_profile" ]; then
+                echo "$HOME/.bash_profile"
+            else
+                echo "$HOME/.profile"
+            fi
+            ;;
+        fish)
+            echo "$HOME/.config/fish/config.fish"
+            ;;
+        *)
+            echo "$HOME/.profile"
+            ;;
+    esac
+}
+
+# Suggest how to add a directory to PATH
+suggest_path_update() {
+    local dir="$1"
+    local profile
+    profile=$(detect_shell_profile)
+    local shell_name
+    shell_name=$(basename "${SHELL:-/bin/sh}")
+
+    warn "Add $dir to your PATH by running:"
+    if [ "$shell_name" = "fish" ]; then
+        warn "  fish_add_path $dir"
     else
-        error "Installation verification failed"
-        exit 1
+        warn "  echo 'export PATH=\"$dir:\$PATH\"' >> $profile"
+    fi
+    warn "Then restart your shell or run:"
+    if [ "$shell_name" = "fish" ]; then
+        warn "  source $profile"
+    else
+        warn "  source $profile"
     fi
 }
 
 # Download checksums and verify
 verify_checksum() {
+    local tmp_dir="$1"
+    local archive_name="$2"
+
     if [ "${SKIP_CHECKSUM:-}" = "true" ]; then
         warn "Skipping checksum verification"
         return
     fi
 
-    local tmp_dir="/tmp/ee-install-$$"
-    local binary_name="${BINARY_NAME}-${PLATFORM}${BINARY_SUFFIX}"
     local checksums_url="https://github.com/$REPO/releases/download/$VERSION/checksums.txt"
 
     log "Verifying checksum..."
@@ -197,10 +240,10 @@ verify_checksum() {
         return
     fi
 
-    # Verify checksum
+    # Verify checksum against the archive
     if command -v sha256sum >/dev/null 2>&1; then
-        local expected_checksum=$(grep "$binary_name" "$tmp_dir/checksums.txt" | cut -d' ' -f1)
-        local actual_checksum=$(sha256sum "$tmp_dir/$BINARY_NAME$BINARY_SUFFIX" | cut -d' ' -f1)
+        local expected_checksum=$(grep "$archive_name" "$tmp_dir/checksums.txt" | cut -d' ' -f1)
+        local actual_checksum=$(sha256sum "$tmp_dir/$archive_name" | cut -d' ' -f1)
 
         if [ "$expected_checksum" != "$actual_checksum" ]; then
             error "Checksum verification failed!"
@@ -209,9 +252,101 @@ verify_checksum() {
             exit 1
         fi
 
-        log "✅ Checksum verified"
+        log "Checksum verified"
+    elif command -v shasum >/dev/null 2>&1; then
+        local expected_checksum=$(grep "$archive_name" "$tmp_dir/checksums.txt" | cut -d' ' -f1)
+        local actual_checksum=$(shasum -a 256 "$tmp_dir/$archive_name" | cut -d' ' -f1)
+
+        if [ "$expected_checksum" != "$actual_checksum" ]; then
+            error "Checksum verification failed!"
+            error "Expected: $expected_checksum"
+            error "Actual: $actual_checksum"
+            exit 1
+        fi
+
+        log "Checksum verified"
     else
-        warn "sha256sum not available - skipping checksum verification"
+        warn "sha256sum/shasum not available - skipping checksum verification"
+    fi
+}
+
+# Download and install
+install_binary() {
+    local tmp_dir="/tmp/ee-install-$$"
+    local binary_name="${BINARY_NAME}-${PLATFORM}${BINARY_SUFFIX}"
+    local archive_name="${binary_name}.tar.gz"
+    local download_url="https://github.com/$REPO/releases/download/$VERSION/$archive_name"
+
+    log "Downloading ee $VERSION for $PLATFORM..."
+    debug "Download URL: $download_url"
+
+    # Create temporary directory
+    mkdir -p "$tmp_dir"
+    trap 'rm -rf "$tmp_dir"' EXIT
+
+    # Download archive
+    if command -v curl >/dev/null 2>&1; then
+        if ! curl -sL "$download_url" -o "$tmp_dir/$archive_name"; then
+            error "Failed to download $archive_name"
+            exit 1
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if ! wget -q "$download_url" -O "$tmp_dir/$archive_name"; then
+            error "Failed to download $archive_name"
+            exit 1
+        fi
+    fi
+
+    # Verify checksum before extraction
+    verify_checksum "$tmp_dir" "$archive_name"
+
+    # Extract binary from archive
+    log "Extracting archive..."
+    if ! tar xzf "$tmp_dir/$archive_name" -C "$tmp_dir"; then
+        error "Failed to extract $archive_name"
+        exit 1
+    fi
+
+    # Rename extracted binary to just the binary name
+    if [ -f "$tmp_dir/$binary_name" ]; then
+        mv "$tmp_dir/$binary_name" "$tmp_dir/$BINARY_NAME$BINARY_SUFFIX"
+    fi
+
+    # Make binary executable
+    chmod +x "$tmp_dir/$BINARY_NAME$BINARY_SUFFIX"
+
+    # Determine install location — prefer user-writable directories already in PATH
+    local install_dir
+    install_dir=$(find_install_dir)
+
+    # Install binary
+    log "Installing to $install_dir/$BINARY_NAME$BINARY_SUFFIX..."
+
+    if ! cp "$tmp_dir/$BINARY_NAME$BINARY_SUFFIX" "$install_dir/$BINARY_NAME$BINARY_SUFFIX"; then
+        error "Failed to install binary to $install_dir"
+        warn "You may need to run with sudo or choose a different install location"
+        exit 1
+    fi
+
+    # Verify installation
+    if "$install_dir/$BINARY_NAME$BINARY_SUFFIX" --version >/dev/null 2>&1; then
+        log "ee $VERSION installed successfully!"
+        log "Location: $install_dir/$BINARY_NAME$BINARY_SUFFIX"
+
+        # Check if binary is in PATH
+        if command -v "$BINARY_NAME" >/dev/null 2>&1; then
+            log "You can now use 'ee' from anywhere!"
+        else
+            warn "$install_dir is not in your PATH"
+            suggest_path_update "$install_dir"
+        fi
+
+        log ""
+        log "Get started with: ee --help"
+        log "Documentation: https://github.com/$REPO"
+    else
+        error "Installation verification failed"
+        exit 1
     fi
 }
 
@@ -266,7 +401,6 @@ EOF
     get_latest_version
     check_version_exists
     install_binary
-    verify_checksum
 }
 
 # Run main function
