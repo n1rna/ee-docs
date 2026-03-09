@@ -45,6 +45,12 @@ export default defineConfig({
 					],
 				},
 				{
+					label: "Integrations",
+					items: [
+						{ label: "GitHub Actions", slug: "github-actions" },
+					],
+				},
+				{
 					label: "Resources",
 					items: [
 						{ label: "llms.txt", slug: "llms-txt" },
