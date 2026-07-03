@@ -41,6 +41,7 @@ export default defineConfig({
 						{ label: "Origins (Push Secrets)", slug: "cli/origins" },
 						{ label: "Apply Command", slug: "cli/apply" },
 						{ label: "Hydrate Command", slug: "cli/hydrate" },
+						{ label: "Skill Command (AI Agents)", slug: "cli/skill" },
 						{ label: "Root Command", slug: "cli/root-command" },
 					],
 				},
@@ -48,12 +49,7 @@ export default defineConfig({
 					label: "Integrations",
 					items: [
 						{ label: "GitHub Actions", slug: "github-actions" },
-					],
-				},
-				{
-					label: "Resources",
-					items: [
-						{ label: "llms.txt", slug: "llms-txt" },
+						{ label: "AI Coding Agents", slug: "cli/skill" },
 					],
 				},
 			],
