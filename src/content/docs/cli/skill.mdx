@@ -1,0 +1,119 @@
+---
+title: Skill Command (AI Agents)
+description: Teach your AI coding agent how to use ee by installing the ee-usage skill
+---
+
+The `ee skill` command installs the **ee usage guide** into the location your AI
+coding agent expects, so the agent knows how to work with `ee` in your project —
+how to add `ee` to a new project, how to work with a project that already has
+`ee` configured, the `.ee`/schema/`.env` file formats, and every command.
+
+Instead of copying a reference file around by hand, you run one command and the
+guide is written as a native skill/rules file for your agent of choice.
+
+## Basic Usage
+
+```bash
+# Install the skill for your agent of choice
+ee skill claude
+ee skill cursor
+ee skill copilot
+ee skill codex
+ee skill opencode
+
+# Install for every supported agent at once
+ee skill all
+
+# List supported agents
+ee skill --list
+
+# Print the guide to stdout instead of writing a file
+ee skill claude --print
+```
+
+## Supported Agents
+
+Each agent has its own convention for project-level instructions. `ee skill`
+writes the guide in the right place and format for each one:
+
+| Agent | Install path | Format |
+|-------|--------------|--------|
+| `claude` | `.claude/skills/ee-usage/SKILL.md` | Skill with YAML frontmatter |
+| `cursor` | `.cursor/rules/ee-usage.mdc` | Rule with YAML frontmatter |
+| `copilot` | `.github/copilot-instructions.md` | Plain markdown |
+| `codex` | `AGENTS.md` | Plain markdown |
+| `opencode` | `AGENTS.md` | Plain markdown |
+| `all` | all of the above | — |
+
+## Flags
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--force` | `-f` | Overwrite an existing skill file |
+| `--list` | `-l` | List supported agents and exit |
+| `--print` | `-p` | Print the guide to stdout instead of writing a file |
+| `--quiet` | `-q` | Suppress non-error output |
+
+By default an existing file is never overwritten — pass `--force` to replace it
+(for example, to refresh the guide after upgrading `ee`).
+
+## What the Guide Contains
+
+The installed guide is the single source of truth shipped with the `ee` binary.
+It covers:
+
+- **Detecting whether a project already uses `ee`** — look for a `.ee` file
+- **Adding `ee` to a new project** — `ee init`, defining a schema, filling in
+  `.env` files, verifying, and `.gitignore` recommendations
+- **Working with an existing `ee` project** — reading the `.ee` config, listing
+  environments, applying environments, adding variables and environments, and
+  pushing secrets — without clobbering existing configuration
+- **File formats** — the `.ee` file, schema files, and annotated `.env` files
+- **Full command reference** — `init`, `apply`, `verify`, `hydrate`, `push`,
+  `auth`, and the root inspection command
+- **Secret-safety guidance** for agents — never commit or print real secrets;
+  prefer `--mask` and `--dry-run`
+
+## Examples
+
+### Set up a project for Claude Code
+
+```bash
+cd my-web-app
+ee skill claude
+```
+
+This creates `.claude/skills/ee-usage/SKILL.md`. Claude Code will automatically
+load the skill when a task involves environment variables or a `.ee` file.
+
+### Set up every agent on a shared repo
+
+```bash
+ee skill all
+git add .claude .cursor .github AGENTS.md
+git commit -m "docs: add ee-usage skill for AI coding agents"
+```
+
+Committing the generated files means everyone's agent — Claude, Cursor, Copilot,
+Codex, or opencode — picks up the same guidance.
+
+### Refresh after upgrading ee
+
+```bash
+# Re-run with --force to overwrite the previous version
+ee skill claude --force
+```
+
+### Preview the guide
+
+```bash
+# See exactly what would be written, without touching the filesystem
+ee skill claude --print
+```
+
+## Requirements
+
+- No project or `.ee` file is required to run `ee skill` — you can install the
+  guide before or after setting up `ee` in the project.
+- The command writes into the current working directory, so run it from your
+  project root.
