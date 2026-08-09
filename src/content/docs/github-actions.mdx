@@ -3,18 +3,19 @@ title: GitHub Actions
 description: Use ee in CI/CD with reusable GitHub Actions for hydrating env files and pushing secrets
 ---
 
-The [ee-action](https://github.com/n1rna/ee-action) repository provides two reusable GitHub Actions for integrating `ee` into your CI/CD pipelines:
+The [ee-action](https://github.com/n1rna/ee-action) repository provides three reusable GitHub Actions for integrating `ee` into your CI/CD pipelines:
 
 | Action | Usage | Description |
 |--------|-------|-------------|
-| **Hydrate** | `n1rna/ee-action@v1` | Generate env files from GitHub secrets + schema defaults |
-| **Push** | `n1rna/ee-action/push@v1` | Push env secrets to GitHub or Cloudflare |
+| **Hydrate** | `n1rna/ee-action/hydrate@v1` | Generate env files from GitHub secrets + schema defaults |
+| **Push** | `n1rna/ee-action/push@v1` | Push one environment's secrets to GitHub or Cloudflare |
+| **Sync** | `n1rna/ee-action/sync@v1` | Push **every** project/environment in a secrets repo to its origins |
 
 ---
 
 ## Hydrate Action
 
-**`n1rna/ee-action@v1`** — generates environment files from a bundled GitHub secret using `ee hydrate`.
+**`n1rna/ee-action/hydrate@v1`** — generates environment files from a bundled GitHub secret using `ee hydrate`.
 
 This is the counterpart to `ee push github` — you push secrets locally, and this action hydrates them in CI.
 
@@ -44,7 +45,7 @@ steps:
   - uses: actions/checkout@v4
 
   - name: Prepare environment
-    uses: n1rna/ee-action@v1
+    uses: n1rna/ee-action/hydrate@v1
     with:
       environment: production
       config_path: .ee
@@ -64,7 +65,7 @@ steps:
   - uses: actions/checkout@v4
 
   - name: Prepare web environment
-    uses: n1rna/ee-action@v1
+    uses: n1rna/ee-action/hydrate@v1
     with:
       environment: production
       config_path: .ee.web
@@ -72,7 +73,7 @@ steps:
       gh_secret: ${{ secrets.ENV_FILE_WEB }}
 
   - name: Prepare API environment
-    uses: n1rna/ee-action@v1
+    uses: n1rna/ee-action/hydrate@v1
     with:
       environment: production
       config_path: .ee.api
@@ -86,7 +87,7 @@ Generate a JSON config file instead of dotenv:
 
 ```yaml
 - name: Generate config
-  uses: n1rna/ee-action@v1
+  uses: n1rna/ee-action/hydrate@v1
   with:
     environment: production
     config_path: .ee
@@ -98,7 +99,7 @@ Generate a JSON config file instead of dotenv:
 ### Pin a Specific Version
 
 ```yaml
-- uses: n1rna/ee-action@v1
+- uses: n1rna/ee-action/hydrate@v1
   with:
     environment: production
     config_path: .ee
@@ -194,6 +195,62 @@ Preview what would be pushed without actually pushing:
 
 ---
 
+## Sync Action
+
+**`n1rna/ee-action/sync@v1`** — pushes an **entire secrets repository** to its origins in one step. Where `push` handles a single environment, `sync` discovers every project and fans out over all of their origins. This is the action for a dedicated "secrets vault" repo.
+
+### Repo layout
+
+```
+projects/
+  api/
+    .ee              # project + environments + origins (no schema, no values)
+    regtest.env      # the actual KEY=VALUE values
+    signet.env
+  web/
+    .ee
+    development.env
+```
+
+One folder per project, each with its own `.ee`. `sync` iterates `projects/*/.ee` and runs `ee push <origin> <environment>` from inside each project folder.
+
+### Picking the environment per origin
+
+`sync` resolves the environment for each origin in this order:
+
+1. an explicit **`sync_env`** field on the origin (recommended — decouples "which values to read" from "where to write"),
+2. the origin's `environment` field, then
+3. the origin key with a `github_` / `cloudflare_` prefix stripped (so `github_regtest` implies `regtest`).
+
+`sync_env` is a plain hint — `ee` ignores unknown `.ee` fields, so it never affects the push itself.
+
+### Inputs
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `projects_dir` | No | `projects` | Directory of per-project subfolders, each with a `.ee` |
+| `project` | No | *(all)* | Only sync this one project subfolder |
+| `dry_run` | No | `false` | Resolve and print targets without pushing |
+| `gh_token` | No | | GitHub token for `gh` (required for GitHub origins) |
+| `cloudflare_api_token` | No | | Cloudflare API token for `wrangler` (required for Cloudflare origins) |
+| `ee_version` | No | `latest` | ee CLI version to download from releases |
+
+Outputs: `pushed` and `failed` counts (the step exits non-zero on any failure).
+
+### Usage
+
+```yaml
+- uses: actions/checkout@v4
+- uses: n1rna/ee-action/sync@v1
+  with:
+    gh_token: ${{ secrets.GH_PAT }}
+    # cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}   # if any CF origins
+```
+
+> **Note:** `GITHUB_TOKEN` cannot write secrets to another repo. Use a PAT or App token with **Secrets + Environments** read/write on the target repo. For environment-scoped secrets, the target environments must already exist there.
+
+---
+
 ## End-to-End Workflows
 
 ### Local Push + CI Hydrate
@@ -221,7 +278,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Prepare environment
-        uses: n1rna/ee-action@v1
+        uses: n1rna/ee-action/hydrate@v1
         with:
           environment: production
           config_path: .ee
@@ -234,6 +291,8 @@ jobs:
 ### Central Env Repository
 
 A dedicated repo that holds `.env` files and pushes them to multiple targets on commit:
+
+> **Tip:** If you lay the repo out as `projects/<name>/.ee`, the [Sync Action](#sync-action) replaces the per-service `push` steps below with a single `uses: n1rna/ee-action/sync@v1`.
 
 ```
 env-configs/
@@ -298,7 +357,7 @@ steps:
   - uses: actions/checkout@v4
 
   - name: Prepare environment
-    uses: n1rna/ee-action@v1
+    uses: n1rna/ee-action/hydrate@v1
     with:
       environment: production
       config_path: .ee
@@ -328,7 +387,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Prepare environment
-        uses: n1rna/ee-action@v1
+        uses: n1rna/ee-action/hydrate@v1
         with:
           environment: ${{ inputs.environment }}
           config_path: .ee
