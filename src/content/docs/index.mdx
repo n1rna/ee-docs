@@ -1,15 +1,19 @@
 ---
 title: Easy Env (ee)
-description: Environment variable management with schema-based validation and multi-stage deployment support
+description: Version-control your secrets in a Git repo and sync them to GitHub Actions and Cloudflare — with schema validation — in a single commit.
 template: splash
 hero:
-  tagline: Structure and validation for environment variable management
+  tagline: A Git repo for your secrets — validated by schemas, synced to GitHub Actions & Cloudflare in a single commit.
   image:
     file: ../../assets/ee-logo.webp
   actions:
     - text: Get started
       link: /getting-started/installation/
       icon: right-arrow
+    - text: GitHub Actions
+      link: /github-actions/
+      icon: right-arrow
+      variant: secondary
     - text: View on GitHub
       link: https://github.com/n1rna/ee-cli
       icon: external
@@ -19,179 +23,198 @@ hero:
 import { Card, CardGrid } from '@astrojs/starlight/components';
 import "../../styles/global.css";
 
+**ee** brings structure to environment variables and secrets. Define a schema, keep your values in a Git repo, and let CI push them wherever they belong — GitHub Actions secrets, Cloudflare Workers, or a hydrated `.env` at deploy time.
 
-**ee** is a CLI tool that brings structure and validation to environment variable management. Define schemas, organize configurations across environments, and deploy with confidence knowing your variables are validated and consistent.
 <div class="flex flex-col items-center pt-6 pb-8">
   ```bash frame="code"
   curl -sSfL https://ee.n1rna.net/install.sh | sh
   ```
 </div>
 
-<CardGrid>
-	<Card title="Installation" icon="add-document">
-		Install ee on Linux, macOS, or Windows with our simple installation guide.
+## Teach your AI coding agent
 
-		[Install ee →](/getting-started/installation)
+Run one command and Claude, Cursor, Copilot, Codex, or opencode learn how to use `ee` in your project — `.ee` files, schemas, environments, and pushing secrets — so they follow the same workflow you do.
+
+```bash title="Install the ee skill for your agent"
+ee skill claude      # or: cursor, copilot, codex, opencode, all
+```
+
+[More on the skill command →](/cli/skill)
+
+## Keep your secrets in a Git repo
+
+Give your team a private **secrets repo**: one folder per project, real values in `.env` sheets, and a small `.ee` file that says where each set of values belongs. Commit a change — CI syncs it everywhere.
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start my-8">
+  <div>
+
+  ```text title="my-secrets/  ·  a private repo"
+  projects/
+  ├── api/
+  │   ├── .ee              # where these values go
+  │   ├── production.env   # the actual KEY=VALUE secrets
+  │   └── staging.env
+  ├── web/
+  │   ├── .ee
+  │   └── production.env
+  └── worker/
+      ├── .ee              # → a Cloudflare Worker
+      └── production.env
+  .github/workflows/
+  └── sync-secrets.yml     # one action syncs it all
+  ```
+
+  </div>
+  <div class="mt-2">
+
+  - **`.env` sheets** hold the real values, versioned like any other file.
+  - **`.ee`** carries no secrets — just the project name, its environments, and its origins (where to push).
+  - **Push to `main`** and the sync action fans out over every project and pushes each one to GitHub or Cloudflare.
+  - Review changes in a PR, roll back with `git revert`, and see exactly who changed what.
+
+  </div>
+</div>
+
+## Sync everything with one action
+
+Point the [**sync action**](/github-actions/#sync-action) at the repo and every project is pushed to its origins on each commit. That's the entire workflow:
+
+```yaml title=".github/workflows/sync-secrets.yml"
+on:
+  push:
+    branches: [main]
+    paths: ["projects/**"]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: n1rna/ee-action/sync@v1
+        with:
+          gh_token: ${{ secrets.GH_PAT }}
+          # cloudflare_api_token: ${{ secrets.CF_API_TOKEN }}   # if any CF origins
+```
+
+## Three actions, whichever fits
+
+Reach for one action for a whole repo, one for a single environment, or read the secrets back in a consuming repo's CI — [full reference →](/github-actions/)
+
+```yaml title="Sync — push every project in the repo"
+- uses: n1rna/ee-action/sync@v1
+  with:
+    gh_token: ${{ secrets.GH_PAT }}
+```
+
+```yaml title="Push — one environment to one origin"
+- uses: n1rna/ee-action/push@v1
+  with:
+    config_path: projects/api/.ee
+    environment: production
+    gh_token: ${{ secrets.GH_PAT }}
+```
+
+```yaml title="Hydrate — read a secret back into .env at deploy time"
+- uses: n1rna/ee-action/hydrate@v1
+  with:
+    environment: production
+    config_path: .ee
+    env_file: .env.production
+    gh_secret: ${{ secrets.ENV_PRODUCTION }}
+```
+
+## One `.ee` file ties it together
+
+The `.ee` file is the whole configuration: the project, its environments (each pointing at value sheets), and its origins. No secrets live here — it's safe to commit anywhere.
+
+```json title="projects/api/.ee"
+{
+  "project": "api",
+  "environments": {
+    "production": { "sheets": ["production.env"] },
+    "staging": { "sheets": ["staging.env"] }
+  },
+  "origins": {
+    "github": {
+      "type": "github",
+      "mode": "bundled",
+      "secret_name": "ENV_PRODUCTION",
+      "repo": "myorg/app",
+      "environment": "production",
+      "sync_env": "production"
+    }
+  }
+}
+```
+
+In an application repo you can also add a `schema` block to validate variable names, types, and defaults — see [Project Configuration](/cli/project-configuration) and [Schemas](/cli/schemas).
+
+## …or drive it from the CLI
+
+Everything the actions do, you can do locally with the same tool:
+
+```bash title="ee — from your machine"
+# Preview what would be pushed (nothing is written)
+ee push github production --dry-run
+
+# Push one environment to its origin
+ee push github production
+
+# Run a command with the environment loaded
+ee apply production -- npm start
+
+# Materialize a .env file (schema defaults + resolved values)
+ee hydrate production -o .env
+```
+
+## Why ee
+
+<CardGrid>
+	<Card title="Git-versioned secrets" icon="github">
+		Keep values in a repo: PR review, history, and one-command rollback for every secret change.
 	</Card>
+	<Card title="GitHub & Cloudflare origins" icon="rocket">
+		Push bundled or individual secrets to GitHub Actions and Cloudflare Workers from one config.
+	</Card>
+	<Card title="Reusable GitHub Actions" icon="setting">
+		`sync`, `push`, and `hydrate` — drop them into a workflow and you're done.
+	</Card>
+	<Card title="Schema validation" icon="approve-check">
+		Define variable types, patterns, and requirements. Catch config errors before production.
+	</Card>
+</CardGrid>
+
+## Documentation
+
+<CardGrid>
 	<Card title="Quick Start" icon="rocket">
-		Learn the basics with a hands-on tutorial covering schemas, projects, and environments.
+		Schemas, projects, and environments in a hands-on tutorial.
 
 		[Quick start guide →](/getting-started/quick-start)
 	</Card>
-</CardGrid>
+	<Card title="GitHub Actions" icon="github">
+		The `hydrate`, `push`, and `sync` actions in full.
 
-
-<div class="space-y-16 my-12">
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-		<div class="mt-4">
-      <div class="rounded-lg flex flex-col">
-        <p class="text-lg font-medium mb-3">Apply Environments</p>
-        <p class="leading-relaxed">Apply environment configurations to your shell or run commands with specific variable sets. Load from .env files or project environments defined in your .ee file.</p>
-      </div>
-    </div>
-		<div class="m-auto w-full">
-			```bash
-			# Apply .env file
-			ee apply .env
-
-			# Apply project environment (from .ee file)
-			ee apply production
-
-			# Run commands with environment
-			ee apply production -- npm start
-			ee apply development -- npm test
-      ```
-    </div>
-
-  </div>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-			<div class="m-auto w-full">
-      ```bash
-      # Create a schema
-      ee schema create web-service \
-        --description "Schema for web services" \
-        --variable "PORT:number:Server port:false:8080" \
-        --variable "DEBUG:boolean:Debug mode:false:false"
-
-      # Initialize project with schema
-      ee init --schema web-service
-
-      # Environments defined in .ee file:
-      # { "environments": {
-      #     "development": { "env": ".env.development" },
-      #     "staging": { "env": ".env.staging" }
-      # }}
-      ```
-    </div>
-
-		<div class="mt-4">
-      <div class="rounded-lg flex flex-col">
-        <p class="text-lg font-medium mb-3">Initialize Projects</p>
-        <p class="leading-relaxed">Initialize projects with .ee configuration files. Define environments and their .env file sources directly in the .ee file for a portable, version-controlled setup.</p>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-## Features
-
-<CardGrid>
-	<Card title="Schema Validation" icon="approve-check">
-		Define variable types, patterns, and requirements. Catch configuration errors before they reach production.
+		[View documentation →](/github-actions)
 	</Card>
-	<Card title="Multi-Environment Support" icon="setting">
-		Manage development, staging, and production configurations from a single tool.
+	<Card title="Origins (Push Secrets)" icon="setting">
+		How `ee push` sends secrets to GitHub and Cloudflare.
+
+		[View documentation →](/cli/origins)
 	</Card>
-	<Card title="Variable Inheritance" icon="puzzle">
-		Share common configuration across environments while maintaining environment-specific overrides.
-	</Card>
-	<Card title="Multiple Export Formats" icon="document">
-		Export to .env, JSON, YAML, or load directly into your shell environment.
-	</Card>
-</CardGrid>
-
-<div class="space-y-16 my-12">
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-		<div class="mt-4">
-      <div class="rounded-lg flex flex-col">
-        <p class="text-lg font-medium mb-3">Push secrets to GitHub & Cloudflare</p>
-        <p class="leading-relaxed">Push your environment secrets directly to GitHub or Cloudflare Workers. Configure origins in your .ee file and push secrets from your local .env files using the tools you already have.</p>
-      </div>
-    </div>
-		<div class="m-auto w-full">
-			```bash
-			# Configure origins in .ee file
-			# { "origins": { "github": { "type": "github" } } }
-
-			# Push production secrets to GitHub
-			ee push github production
-
-			# Preview what would be pushed
-			ee push production --dry-run
-      ```
-    </div>
-
-  </div>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-			<div class="m-auto w-full">
-```bash
-# Export environments
-ee apply production --dry-run --format dotenv > .env.prod
-ee apply production --dry-run --format json > config.json
-
-# Apply .env files directly
-ee apply .env.staging
-
-# Filter current environment variables
-ee --filter 'NODE*,PORT' --format json
-```
-    </div>
-
-		<div class="mt-4">
-      <div class="rounded-lg flex flex-col">
-        <p class="text-lg font-medium mb-3">Export and import</p>
-        <p class="leading-relaxed">Export configurations to various formats including .env files and JSON. Apply existing .env files directly, and filter current environment variables with patterns.</p>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-## CLI Documentation
-
-<CardGrid>
-	<Card title="Project Configuration" icon="setting">
-		Learn about the .ee file structure and how to configure your project.
+	<Card title="Project Configuration" icon="document">
+		The `.ee` file structure, environments, and origins.
 
 		[View documentation →](/cli/project-configuration)
 	</Card>
 	<Card title="Schemas" icon="starship">
-		Define the structure and validation rules for your environment variables.
+		Structure and validation rules for your variables.
 
 		[View documentation →](/cli/schemas)
 	</Card>
-	<Card title="Origins (Push Secrets)" icon="setting">
-		Push environment secrets to GitHub and Cloudflare Workers.
-
-		[View documentation →](/cli/origins)
-	</Card>
-	<Card title="Apply Command" icon="rocket">
-		Apply environment variables from .env files and project environments.
-
-		[View documentation →](/cli/apply)
-	</Card>
 	<Card title="AI Coding Agents" icon="puzzle">
-		Install the ee-usage skill so Claude, Cursor, Copilot, Codex, or opencode know how to use ee.
+		Install the ee-usage skill for Claude, Cursor, Copilot, Codex, or opencode.
 
 		[View documentation →](/cli/skill)
 	</Card>
-	<Card title="Root Command" icon="list-format">
-		Display and filter environment variables in your current shell.
-
-		[View documentation →](/cli/root-command)
-	</Card>
 </CardGrid>
-
-<div class="text-center text-sm text-slate-500 dark:text-slate-400 mt-16 mb-8">
-</div>
